@@ -1,0 +1,303 @@
+import streamlit as st
+import geopandas as gpd
+import numpy as np 
+import pandas as pd
+import plotly.express as px
+import matplotlib.pyplot as plt 
+import pyarrow as py
+import folium
+import cv2 
+
+from zona_utm import calcular_utm
+from streamlit_folium import folium_static, st_folium
+from rasterio.io import MemoryFile
+from rasterio.mask import mask
+from folium.raster_layers import ImageOverlay
+
+# Configuração inicial da página
+st.set_page_config(layout="wide")
+
+# Título e sub-título
+st.title('Web Gis_AULA_UFPI')
+st.subheader('Projetos de Regularização Fundiária e Ambiental')
+
+# Sidebar com uploaders
+st.sidebar.title('Menu')
+poligono_subido = st.sidebar.file_uploader('Selecione o arquivo vetorial (shapefile, geojson)', 
+                                         type=['.shp', '.geojson', '.gpkg'])
+raster_subido = st.sidebar.file_uploader('Selecionar o arquivo raster (geotiff)', 
+                                       type=['.tif', '.tiff'])
+
+# Verificar se os arquivos foram carregados
+if poligono_subido is None:
+    st.warning('Por favor, carregue um arquivo vetorial para iniciar')
+    st.stop()
+
+try:
+    poligono_analise = gpd.read_file(poligono_subido)
+except Exception as e:
+    st.error(f"Erro ao carregar arquivo vetorial: {str(e)}")
+    st.stop()
+
+# Caminhos dos arquivos
+embargos = 'dados/embargos/embargos_ibama.parquet'
+desmatamento = 'dados/prodes/prodes.parquet'
+tis = 'dados/tis_poligonais/tis.parquet'
+
+# Dicionários de mapeamento (substitua com seus valores reais)
+color_map = {
+    0: [0, 0, 0, 0],       # Transparente
+    1: [34, 139, 34, 255],  # Verde floresta
+    2: [255, 165, 0, 255],  # Laranja
+    3: [255, 0, 0, 255],    # Vermelho
+    # Adicione outros mapeamentos conforme necessário
+}
+
+value_to_class = {
+    0: "Água",
+    1: "Floresta",
+    2: "Agricultura",
+    3: "Área Urbana",
+    # Adicione outros mapeamentos conforme necessário
+}
+
+# Funções para carregar dados com cache
+@st.cache_resource
+def abrir_embargos():
+    gdf_embargos = gpd.read_parquet(embargos)
+    return gdf_embargos
+
+@st.cache_resource
+def abrir_desmatamento():
+    gdf_desmatamento = gpd.read_parquet(desmatamento)
+    return gdf_desmatamento
+
+@st.cache_resource
+def abrir_tis():
+    gdf_ti = gpd.read_parquet(tis)
+    return gdf_ti
+
+# Carregar os dados
+try:
+    gdf_embargos = abrir_embargos()
+    gdf_desmatamento = abrir_desmatamento()
+    gdf_ti = abrir_tis()
+except Exception as e:
+    st.error(f"Erro ao carregar dados base: {str(e)}")
+    st.stop()
+
+# Operações espaciais
+try:
+    entrada_embargos = gpd.sjoin(gdf_embargos, poligono_analise, how='inner', predicate='intersects')
+    entrada_embargos = gpd.overlay(entrada_embargos, poligono_analise, how='intersection')
+
+    entrada_desmatamento = gpd.sjoin(gdf_desmatamento, poligono_analise, how='inner', predicate='intersects')
+    entrada_desmatamento = gpd.overlay(entrada_desmatamento, poligono_analise, how='intersection')
+
+    entrada_tis = gpd.sjoin(gdf_ti, poligono_analise, how='inner', predicate='intersects')
+    entrada_tis = gpd.overlay(entrada_tis, poligono_analise, how='intersection')
+except Exception as e:
+    st.error(f"Erro nas operações espaciais: {str(e)}")
+    st.stop()
+
+# Calcular UTM e áreas
+try:
+    epsg_arquivo = calcular_utm(poligono_analise)
+
+    area_desmatamento = entrada_desmatamento.dissolve(by=None)
+    area_desmatamento = area_desmatamento.to_crs(epsg=epsg_arquivo)
+
+    area_embargos = entrada_embargos.dissolve(by=None)
+    area_embargos = area_embargos.to_crs(epsg=epsg_arquivo)
+
+    area_tis = entrada_tis.dissolve(by=None)
+    area_tis = area_tis.to_crs(epsg=epsg_arquivo)
+except Exception as e:
+    st.error(f"Erro no cálculo de áreas: {str(e)}")
+    st.stop()
+
+# Processamento do raster (se fornecido)
+resized_image = None
+bounds = None
+
+if raster_subido is not None:
+    try:
+        with MemoryFile(raster_subido.getvalue()) as memfile:
+            with memfile.open() as src:
+                if poligono_analise.crs != src.crs:
+                    poligono_analise = poligono_analise.to_crs(src.crs)
+                
+                geometries = poligono_analise.geometry
+                out_image, out_transform = mask(src, geometries, crop=True)
+                out_image = out_image[0]  # recorte da banda zero
+
+                height, width = out_image.shape
+                rgb_image = np.zeros((height, width, 4), dtype=np.uint8)
+                
+                for value, color in color_map.items():
+                    rgb_image[out_image == value] = color
+
+                resized_image = cv2.resize(rgb_image, (width, height), interpolation=cv2.INTER_NEAREST)
+
+                min_x, min_y = out_transform * (0, 0)
+                max_x, max_y = out_transform * (width, height)
+                bounds = [[min_y, min_x], [max_y, max_x]]
+    except Exception as e:
+        st.error(f"Erro no processamento do raster: {str(e)}")
+
+# Mostrar métricas
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.subheader('Área desmatada (ha)')
+    if len(area_desmatamento) == 0:
+        st.subheader('0')
+    else:
+        area_desmatamento['area'] = area_desmatamento.area / 10000
+        st.subheader(str(round(area_desmatamento.loc[0, 'area'], 4)))
+
+with col2:
+    st.subheader('Área embargos (ha)')
+    if len(area_embargos) == 0:
+        st.subheader('0')
+    else:
+        area_embargos['area'] = area_embargos.area / 10000
+        st.subheader(str(round(area_embargos.loc[0, 'area'], 4)))
+
+with col3:
+    st.subheader('Área TI (ha)')
+    if len(area_tis) == 0:
+        st.subheader('0')
+    else:
+        area_tis['area'] = area_tis.area / 10000
+        st.subheader(str(round(area_tis.loc[0, 'area'], 4)))
+
+# Criar mapa
+try:
+    centroid_x, centroid_y = poligono_analise.centroid.x, poligono_analise.centroid.y
+    m = folium.Map(location=[centroid_y, centroid_x], zoom_start=8, tiles='Esri World Imagery')
+
+    if resized_image is not None and bounds is not None:
+        ImageOverlay(
+            image=resized_image,
+            bounds=bounds,
+            opacity=0.7,
+            name='Mapbiomas coleção 9',
+            interactive=True,
+            cross_origin=False,
+            zindex=1,
+        ).add_to(m)
+
+    minx, miny, maxx, maxy = poligono_analise.total_bounds
+    m.fit_bounds([[miny, minx], [maxy, maxx]])
+
+    # Adicionar camadas ao mapa
+    folium.GeoJson(poligono_analise, name='Polígono analisado').add_to(m)
+
+    def style_function_desmatamento(x):
+        return {
+            'fillColor': 'red',
+            'color': 'red',
+            'weight': 1,
+            'fillOpacity': 0.6
+        }
+    
+    if not entrada_desmatamento.empty:
+        folium.GeoJson(entrada_desmatamento, name='Área desmatada', 
+                       style_function=style_function_desmatamento).add_to(m)
+
+    def style_function_embargo(x):
+        return {
+            'fillColor': 'orange',
+            'color': 'orange',
+            'weight': 1,
+            'fillOpacity': 0.6
+        }
+    
+    if not entrada_embargos.empty:
+        folium.GeoJson(entrada_embargos, name='Embargos', 
+                       style_function=style_function_embargo).add_to(m)
+
+    def style_function_ti(x):
+        return {
+            'fillColor': 'yellow',
+            'color': 'yellow',
+            'weight': 1,
+            'fillOpacity': 0.6
+        }
+    
+    if not entrada_tis.empty:
+        folium.GeoJson(entrada_tis, name='Áreas TIs', 
+                       style_function=style_function_ti).add_to(m)
+
+    folium.LayerControl().add_to(m)
+    st_folium(m, width='100%')
+
+except Exception as e:
+    st.error(f"Erro ao criar o mapa: {str(e)}")
+
+# Mostrar estatísticas do raster
+if raster_subido is not None and resized_image is not None:
+    st.write('Área em hectares:')
+    unique_values, counts = np.unique(out_image, return_counts=True)
+    for value, count in zip(unique_values, counts):
+        class_name = value_to_class.get(value, "Unknown")
+        area_ha = (count * 900) / 10000  # Assumindo resolução de 30x30m (ajuste conforme necessário)
+        st.write(f"{class_name}: {area_ha:.2f} ha")
+
+# Seção de gráficos
+st.header("Análise Gráfica")
+
+# Preparar dados para gráficos
+def_desmat = pd.DataFrame(entrada_desmatamento).drop(columns=['geometry']) if not entrada_desmatamento.empty else pd.DataFrame()
+def_embargo = pd.DataFrame(entrada_embargos).drop(columns=['geometry']) if not entrada_embargos.empty else pd.DataFrame()
+def_ti = pd.DataFrame(entrada_tis).drop(columns=['geometry']) if not entrada_tis.empty else pd.DataFrame()
+
+# Widgets para seleção de gráficos
+col1_graf, col2_graf, col3_graf, col4_graf = st.columns(4)
+
+with col1_graf:
+    tema_grafico = st.selectbox('Selecionar o tema do gráfico', 
+                               options=['Embargos', 'Desmatamento', 'Terras Indígenas'])
+
+with col2_graf:
+    tipo_grafico = st.selectbox('Selecionar o tipo de gráfico',
+                               options=['box', 'bar', 'line', 'scatter', 'violin', 'histogram'],
+                               index=5)
+
+# Selecionar dataframe baseado no tema
+df_analisado = pd.DataFrame()
+if tema_grafico == 'Embargos' and not def_embargo.empty:
+    df_analisado = def_embargo
+elif tema_grafico == 'Desmatamento' and not def_desmat.empty:
+    df_analisado = def_desmat
+elif tema_grafico == 'Terras Indígenas' and not def_ti.empty:
+    df_analisado = def_ti
+
+# Criar gráfico se houver dados
+if not df_analisado.empty:
+    with col3_graf:
+        xval = st.selectbox('Selecionar o eixo x do gráfico',
+                           options=df_analisado.columns,
+                           index=min(6, len(df_analisado.columns)-1))
+
+    with col4_graf:
+        yval = st.selectbox('Selecionar o eixo y do gráfico',
+                           options=df_analisado.columns,
+                           index=min(5, len(df_analisado.columns)-1))
+
+    try:
+        if tipo_grafico == 'histogram':
+            fig = px.histogram(df_analisado, x=xval)
+        else:
+            plot_func = getattr(px, tipo_grafico)
+            fig = plot_func(df_analisado, x=xval, y=yval)
+        
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Erro ao criar gráfico: {str(e)}")
+else:
+    st.warning("Não há dados disponíveis para o tema selecionado")
+
+# Mensagem final
+st.info("Análise concluída. Verifique os resultados acima.")

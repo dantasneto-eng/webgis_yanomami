@@ -1,0 +1,15 @@
+# Ignora arquivos maiores que 100 MB (limite do GitHub) e arquivos temporários
+Dados/car_ms/
+Dados/car/
+Dados/car_ms.zip
+Dados/mapbiomas_ms.tif
+Dados/matopiba_2023.tif
+Dados/mapbiomas_alertas/mapbiomas_alertas.parquet
+Dados/prodes/prodes.parquet
+Dados/*.aux.xml
+__pycache__/
+Dados/__pycache__/
+.venv/
+.vscode/
+car_upload/.env
+*.env

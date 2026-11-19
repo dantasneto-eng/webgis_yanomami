@@ -1,0 +1,3 @@
+# Configuração padrão do tema do WebGIS Yanomami em modo escuro
+[theme]
+base = "dark"

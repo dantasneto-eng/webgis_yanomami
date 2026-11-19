@@ -1,0 +1,27 @@
+WEB GIS
+
+1. Criar projeto no QGis com as camadas que serão utilizadas no webgis
+
+1.1 Imagem raster com classes do mapbiomas recotada pelo limite do municipio (Uruçuí - salvar em alta compressão -  o limite no sigweb é 200 MG)
+
+1.2 Vetores:
+
+Limite do municipio
+sigef particular / publico
+CAR - recortado pelo limite do municipio
+Desmatamento - Prodes
+Embargos - Ibama
+Terras indiginas - Trocar por Unidade de Conservação Federal
+
+>> colocar todos os arquivos na mesma pasta "Dados"
+
+2. No VS code rodar o streamlit
+
+> streamli run home.py  (deve abri uma página localhost)
+C:\Users\marci\Google Drive\Webgis\Dados> streamlit run streamlit_app.py 
+
+Selecionar as camadas de entrata e analisar os dados
+
+3. Criar um Repositório no Github
+
+4. Criar um App no Streamlit web

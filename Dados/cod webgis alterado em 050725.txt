@@ -1,0 +1,245 @@
+import streamlit as st
+import geopandas as gpd
+import pandas as pd
+import numpy as np
+
+from zona_utm import calcular_utm
+from utils import abrir_parquet, limpar_colunas_embargo, value_to_class
+from processamento import processar_raster
+from mapa import construir_mapa
+from graficos import exibir_grafico
+
+st.set_page_config(layout="wide")
+st.header('WebGIS')
+st.subheader('SIG - Análise Espacial na Regularização Fundiária e Ambiental')
+st.sidebar.title('Menu')
+
+# Uploads
+poligono_subido = st.sidebar.file_uploader('Escolha o polígono a ser analisado (CAR)')
+raster_subido = st.sidebar.file_uploader('Escolha o raster a ser analisado (Mapbiomas)')
+embargo_subido = st.sidebar.file_uploader('Arquivo de embargos (.parquet)', type='parquet')
+desmatamento_subido = st.sidebar.file_uploader('Arquivo de desmatamento (.parquet)', type='parquet')
+ti_subido = st.sidebar.file_uploader('Arquivo de Terras Indígenas (.parquet)', type='parquet')
+
+if poligono_subido and raster_subido and embargo_subido and desmatamento_subido and ti_subido:
+    poligono_analise = gpd.read_file(poligono_subido)
+
+    gdf_embargos = abrir_parquet(embargo_subido)
+    gdf_desmat = abrir_parquet(desmatamento_subido)
+    gdf_ti = abrir_parquet(ti_subido)
+
+    gdf_embargos = limpar_colunas_embargo(gdf_embargos)
+
+    entrada_embargo = gpd.overlay(
+        gpd.sjoin(gdf_embargos, poligono_analise, how='inner', predicate='intersects'),
+        poligono_analise, how='intersection'
+    )
+    entrada_desmat = gpd.overlay(
+        gpd.sjoin(gdf_desmat, poligono_analise, how='inner', predicate='intersects'),
+        poligono_analise, how='intersection'
+    )
+    entrada_tis = gpd.overlay(
+        gpd.sjoin(gdf_ti, poligono_analise, how='inner', predicate='intersects'),
+        poligono_analise, how='intersection'
+    )
+
+    epsg_arquivo = calcular_utm(poligono_analise)
+
+    def calcular_area(gdf):
+        return gdf.dissolve().to_crs(epsg=epsg_arquivo)
+
+    area_desmat = calcular_area(entrada_desmat)
+    area_embargos = calcular_area(entrada_embargo)
+    area_tis = calcular_area(entrada_tis)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.subheader('Área desmatada (ha)')
+        st.subheader(str(round(area_desmat.area.iloc[0] / 10000, 2)) if not area_desmat.empty else '0')
+
+    with col2:
+        st.subheader('Área embargada (ha)')
+        st.subheader(str(round(area_embargos.area.iloc[0] / 10000, 2)) if not area_embargos.empty else '0')
+
+    with col3:
+        st.subheader('Área de TIs (ha)')
+        st.subheader(str(round(area_tis.area.iloc[0] / 10000, 2)) if not area_tis.empty else '0')
+
+    out_image, resized_image, bounds = processar_raster(raster_subido, poligono_analise)
+    construir_mapa(resized_image, bounds, entrada_desmat, entrada_embargo, entrada_tis)
+
+    st.write('Áreas em hectares por classe:')
+    unique_values, counts = np.unique(out_image, return_counts=True)
+    for value, count in zip(unique_values, counts):
+        class_name = value_to_class.get(value, "Desconhecido")
+        area_ha = (count * 900) / 10000
+        st.write(f"{class_name}: {area_ha:.2f} ha")
+
+    df_embargo = pd.DataFrame(entrada_embargo).drop(columns=['geometry'])
+    df_desmat = pd.DataFrame(entrada_desmat).drop(columns=['geometry'])
+    df_ti = pd.DataFrame(entrada_tis).drop(columns=['geometry'])
+
+    exibir_grafico(df_embargo, df_desmat, df_ti)
+
+else:
+    st.warning('Suba todos os arquivos para iniciar o WebGIS.')
+
+
+xxxxxxxxxxxxxxxxxxxxx
+utils.py
+
+import geopandas as gpd
+
+color_map = {
+    1: [0, 168, 132, 255],   # exemplo de cores (ajuste conforme necessário)
+    2: [255, 255, 0, 255],
+    3: [255, 0, 0, 255]
+}
+
+value_to_class = {
+    1: "Vegetação Nativa",
+    2: "Área Agrícola",
+    3: "Área Urbana"
+}
+
+def abrir_parquet(uploaded_file):
+    return gpd.read_parquet(uploaded_file)
+
+def limpar_colunas_embargo(gdf):
+    return gdf.drop(columns=[
+        'nom_pessoa', 'cpf_cnpj_i', 'cpf_cnpj_s', 'end_pessoa',
+        'des_bairro', 'num_cep', 'num_fone', 'data_tad',
+        'dat_altera', 'data_cadas', 'data_geom', 'dt_carga'
+    ], errors='ignore')
+
+
+xxxxxxxxxxxxxxxxxxxxx
+processamento.py
+
+import numpy as np
+import cv2
+from rasterio.io import MemoryFile
+from rasterio.mask import mask
+from utils import color_map
+
+def processar_raster(raster_file, poligono):
+    with MemoryFile(raster_file.getvalue()) as memfile:
+        with memfile.open() as src:
+            if poligono.crs != src.crs:
+                poligono = poligono.to_crs(src.crs)
+
+            out_image, out_transform = mask(src, poligono.geometry, crop=True)
+            out_image = out_image[0]
+
+            height, width = out_image.shape
+            rgb_image = np.zeros((height, width, 4), dtype=np.uint8)
+
+            for value, color in color_map.items():
+                rgb_image[out_image == value] = color
+
+            resized_image = cv2.resize(rgb_image, (width, height), interpolation=cv2.INTER_NEAREST)
+            min_x, min_y = out_transform * (0, 0)
+            max_x, max_y = out_transform * (width, height)
+            bounds = [[min_y, min_x], [max_y, max_x]]
+
+            return out_image, resized_image, bounds
+
+
+xxxxxxxxxxxxxxxxxxxxxx
+Mapa.py
+
+import folium
+from folium.raster_layers import ImageOverlay
+from streamlit_folium import st_folium
+
+def adicionar_camada(gdf, nome, cor, mapa):
+    folium.GeoJson(gdf[['geometry']], name=nome, style_function=lambda x: {
+        'fillColor': cor, 'color': 'black', 'weight': 1, 'fillOpacity': 0.6
+    }).add_to(mapa)
+
+def construir_mapa(resized_image, bounds, entrada_desmat, entrada_embargo, entrada_tis):
+    m = folium.Map(location=[-15, -54], zoom_start=8, tiles='Esri World Imagery')
+    ImageOverlay(image=resized_image, bounds=bounds, opacity=0.7, name='Mapbiomas coleção 9').add_to(m)
+
+    adicionar_camada(entrada_desmat, 'Área desmatada', 'red', m)
+    adicionar_camada(entrada_embargo, 'Área embargada', 'orange', m)
+    adicionar_camada(entrada_tis, 'Área de TIs', 'yellow', m)
+
+    folium.LayerControl().add_to(m)
+    st_folium(m, width='100%')
+
+
+XXXXXXXXXXXXXXXXXXXXXXX
+graficos.py
+
+import plotly.express as px
+import streamlit as st
+
+def exibir_grafico(df_embargo, df_desmat, df_ti):
+    col1, col2, col3, col4 = st.columns(4)
+    tema = col1.selectbox('Tema', ['Desmatamento', 'Embargo', 'Terras Indígenas'])
+    tipo = col2.selectbox('Tipo', ['box', 'bar', 'line', 'scatter', 'violin', 'histogram'], index=5)
+
+    df_analisado = {
+        'Embargo': df_embargo,
+        'Desmatamento': df_desmat,
+        'Terras Indígenas': df_ti
+    }[tema]
+
+    if not df_analisado.empty:
+        x_val = col3.selectbox('Eixo X', df_analisado.columns)
+        y_val = col4.selectbox('Eixo Y', df_analisado.columns)
+        plot_func = getattr(px, tipo)
+        st.plotly_chart(plot_func(df_analisado, x=x_val, y=y_val), use_container_width=True)
+    else:
+        st.info("Nenhum dado disponível para o gráfico selecionado.")
+
+
+xxxxxxxxxxxxxxxxxxxxxxxxx
+requirements.txt
+
+streamlit
+geopandas
+rasterio
+folium
+opencv-python-headless
+numpy
+pandas
+plotly
+streamlit-folium
+
+xxxxxxxxxxxxxxxxxxxxxx
+Readme.md
+
+# WebGIS - Análise Espacial para Regularização Fundiária e Ambiental
+
+Este projeto é uma aplicação WebGIS desenvolvida com Streamlit para análise espacial de áreas embargadas, desmatadas e Terras Indígenas com base em arquivos vetoriais e raster.
+
+## 📦 Funcionalidades
+
+- Upload de arquivos vetoriais (CAR, embargos, desmatamento, TIs)
+- Processamento de raster (ex: MapBiomas)
+- Cálculo de áreas por classe
+- Visualização interativa com Folium
+- Geração de gráficos com Plotly
+
+## 🗂 Estrutura do Projeto
+
+
+## ▶️ Como Executar
+
+1. Clone o repositório:
+   ```bash
+   git clone https://github.com/seu-usuario/webgis_aula.git
+   cd webgis_aula
+
+pip install -r requirements.txt
+
+streamlit run Home.py
+
+
+
+
+
+
+

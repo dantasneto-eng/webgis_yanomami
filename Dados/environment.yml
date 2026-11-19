@@ -1,0 +1,29 @@
+# Ambiente Conda recomendado para o projeto WebGIS
+# Use: conda env create -f environment.yml
+name: webgis
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11.1
+  - numpy
+  - pandas
+  - geopandas
+  - rasterio
+  - fiona
+  - shapely
+  - pyproj
+  - gdal
+  - plotly
+  - folium
+  - streamlit
+  - opencv
+  - pip
+  - pip:
+    - streamlit-folium>=0.10
+    # se preferir, instale opencv-python via pip em vez do pacote conda
+    # - opencv-python>=4.5
+
+# Observações:
+# - No Windows é recomendável usar conda/conda-forge para geoespaciais (GDAL, PROJ, Fiona, etc.).
+# - Depois de criar o ambiente, ative-o com `conda activate webgis` e rode o app:
+#     streamlit run "d:\UFPI_2024_2025\Webgis\dados_base\main.py"

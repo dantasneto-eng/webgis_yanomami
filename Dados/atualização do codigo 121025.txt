@@ -1,0 +1,35 @@
+Conectar o vs codigo direto no github:
+1.Crie o repositório no GitHub:
+Acesse github.com
+Clique em "New repository"
+Dê um nome, escolha "Public" ou "Private", e clique em "Create repository"
+
+2. No terminal do VS Code, rode estes comandos:
+
+git init
+git add .
+git commit -m "Primeiro commit do WebGIS"
+git remote add origin https://https://github.com/MARCIOCOSTAPI/SIGWEB.git
+git branch -M main
+git push -u origin main
+
+
+3. rodar o streamlit
+cd d:\UFPI_2024_2025\Webgis\Dados (mude a pasta do projeto)
+
+PS C:\Users\marci> cd "C:\Users\marci\Google Drive\Webgis\Dados"
+PS C:\Users\marci\Google Drive\Webgis\Dados> streamlit run Home.py
+
+
+Execute o Streamlit:
+streamlit run Home.py
+
+
+CRIAR um aplicativo (pagina na web do streamlit)
+
+URL do GitHub:
+https://github.com/MARCIOCOSTAPI/SIGWEB/blob/master/streamlit_app.py
+
+URL do aplicativo (opcional)
+sigweb..streamlit.app
+

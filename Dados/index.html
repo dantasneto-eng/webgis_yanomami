@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGIS - Múltiplos Basemaps</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+        }
+        
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        
+        .basemap-control {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px;
+            min-width: 200px;
+        }
+        
+        .basemap-control h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #333;
+            border-bottom: 2px solid #007cba;
+            padding-bottom: 5px;
+        }
+        
+        .basemap-option {
+            display: block;
+            width: 100%;
+            margin: 5px 0;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            background: #f9f9f9;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            color: #555;
+        }
+        
+        .basemap-option:hover {
+            background: #e3f2fd;
+            border-color: #007cba;
+            transform: translateX(5px);
+        }
+        
+        .basemap-option.active {
+            background: #007cba;
+            color: white;
+            border-color: #005a8b;
+        }
+        
+        .layer-control {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px;
+            min-width: 250px;
+        }
+        
+        .layer-control h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #333;
+            border-bottom: 2px solid #28a745;
+            padding-bottom: 5px;
+        }
+        
+        .layer-option {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            flex-wrap: wrap;
+        }
+        
+        .layer-option input[type="file"] {
+            margin-right: 10px;
+            font-size: 12px;
+            padding: 2px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            background: #f9f9f9;
+        }
+        
+        .layer-option input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        
+        .layer-option label {
+            cursor: pointer;
+            color: #555;
+            font-size: 14px;
+        }
+        
+        .layer-status {
+            margin-left: 10px;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .layer-status.loading {
+            background: #ffc107;
+            color: #000;
+        }
+        
+        .layer-status.loaded {
+            background: #28a745;
+            color: white;
+        }
+        
+        .layer-status.error {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .info-panel {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px;
+            max-width: 300px;
+        }
+        
+        .info-panel h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .info-panel p {
+            margin: 5px 0;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .zoom-control {
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .zoom-btn {
+            display: block;
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: #007cba;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            border-bottom: 1px solid #005a8b;
+        }
+        
+        .zoom-btn:hover {
+            background: #005a8b;
+        }
+        
+        .zoom-btn:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <!-- Controle de Basemaps -->
+    <div class="basemap-control">
+        <h3>🗺️ Basemaps</h3>
+        <button class="basemap-option active" data-basemap="osm">OpenStreetMap</button>
+        <button class="basemap-option" data-basemap="satellite">Satélite</button>
+        <button class="basemap-option" data-basemap="terrain">Terreno</button>
+    </div>
+    
+        <!-- Controle de Camadas -->
+        <div class="layer-control">
+            <h3>📊 Camadas</h3>
+            <div class="layer-option">
+                <input type="checkbox" id="car1">
+                <label for="car1">CAR 1</label>
+                <span id="car1-status" class="layer-status"></span>
+            </div>
+            <div class="layer-option">
+                <input type="checkbox" id="car22102025">
+                <label for="car22102025">CAR 22/10/2025</label>
+                <span id="car22102025-status" class="layer-status"></span>
+            </div>
+            <div class="layer-option">
+                <input type="checkbox" id="desmatamento">
+                <label for="desmatamento">Desmatamento</label>
+                <span id="desmatamento-status" class="layer-status"></span>
+            </div>
+            <div class="layer-option">
+                <input type="checkbox" id="embargos">
+                <label for="embargos">Embargos</label>
+                <span id="embargos-status" class="layer-status"></span>
+            </div>
+            <div class="layer-option">
+                <input type="checkbox" id="urucui">
+                <label for="urucui">Uruçuí</label>
+                <span id="urucui-status" class="layer-status"></span>
+            </div>
+        </div>
+    
+    <!-- Botões de Zoom Customizados -->
+    <div class="zoom-control">
+        <button class="zoom-btn" id="zoom-in">+</button>
+        <button class="zoom-btn" id="zoom-out">-</button>
+    </div>
+    
+        <!-- Painel de Informações -->
+        <div class="info-panel">
+            <h4>ℹ️ Informações do WebGIS</h4>
+            <p><strong>Basemap Ativo:</strong> <span id="current-basemap">OpenStreetMap</span></p>
+            <p><strong>Zoom:</strong> <span id="current-zoom">12</span></p>
+            <p><strong>Coordenadas:</strong> <span id="current-coords">-44.5561, -7.2253</span></p>
+            <p><strong>Camadas Ativas:</strong> <span id="active-layers">Nenhuma</span></p>
+            <button id="debug-btn" style="margin-top: 10px; padding: 5px 10px; background: #007cba; color: white; border: none; border-radius: 3px; cursor: pointer;">🔍 Debug Camadas</button>
+        </div>
+
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Inicializar o mapa centralizado em Uruçuí
+        let map = L.map('map').setView([-7.2253, -44.5561], 12);
+        
+        // Definir os basemaps
+        const basemaps = {
+            osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }),
+            satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '© Esri',
+                maxZoom: 19
+            }),
+            terrain: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '© Esri',
+                maxZoom: 19
+            })
+        };
+        
+        // Adicionar o basemap padrão
+        basemaps.osm.addTo(map);
+        let currentBasemap = 'osm';
+        
+        // Variáveis para armazenar as camadas
+        const layers = {};
+        
+        // Função para carregar dados GeoJSON automaticamente
+        function loadGeoJSONLayer(fileName, layerName) {
+            console.log(`Carregando camada: ${fileName}`);
+            
+            // Mostrar status de carregamento
+            const statusElement = document.getElementById(`${layerName}-status`);
+            if (statusElement) {
+                statusElement.textContent = 'Carregando...';
+                statusElement.className = 'layer-status loading';
+            }
+            
+            fetch(fileName)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log(`Dados carregados para ${layerName}:`, data);
+                    console.log(`Número de features em ${layerName}:`, data.features ? data.features.length : 0);
+                    
+                    if (!data.features || data.features.length === 0) {
+                        console.warn(`Nenhuma feature encontrada em ${fileName}`);
+                        if (statusElement) {
+                            statusElement.textContent = 'Vazio';
+                            statusElement.className = 'layer-status error';
+                        }
+                        return;
+                    }
+                    
+                    layers[layerName] = L.geoJSON(data, {
+                        style: function(feature) {
+                            // Definir estilos baseados no tipo de camada
+                            const styles = {
+                                'car1': {
+                                    color: '#ff6b6b',
+                                    weight: 3,
+                                    opacity: 0.9,
+                                    fillOpacity: 0.4,
+                                    fillColor: '#ff6b6b'
+                                },
+                                'car22102025': {
+                                    color: '#4ecdc4',
+                                    weight: 3,
+                                    opacity: 0.9,
+                                    fillOpacity: 0.4,
+                                    fillColor: '#4ecdc4'
+                                },
+                                'desmatamento': {
+                                    color: '#ff4757',
+                                    weight: 3,
+                                    opacity: 0.9,
+                                    fillOpacity: 0.5,
+                                    fillColor: '#ff4757'
+                                },
+                                'embargos': {
+                                    color: '#ffa502',
+                                    weight: 3,
+                                    opacity: 0.9,
+                                    fillOpacity: 0.5,
+                                    fillColor: '#ffa502'
+                                },
+                                'urucui': {
+                                    color: '#2ed573',
+                                    weight: 3,
+                                    opacity: 0.9,
+                                    fillOpacity: 0.4,
+                                    fillColor: '#2ed573'
+                                }
+                            };
+                            
+                            return styles[layerName] || {
+                                color: '#007cba',
+                                weight: 3,
+                                opacity: 0.9,
+                                fillOpacity: 0.4,
+                                fillColor: '#007cba'
+                            };
+                        },
+                        onEachFeature: function(feature, layer) {
+                            // Adicionar popup com informações da feature
+                            let popupContent = `<h4>${layerName.toUpperCase()}</h4>`;
+                            if (feature.properties) {
+                                Object.keys(feature.properties).forEach(key => {
+                                    popupContent += `<p><strong>${key}:</strong> ${feature.properties[key]}</p>`;
+                                });
+                            }
+                            layer.bindPopup(popupContent);
+                        }
+                    });
+                    
+                    console.log(`Camada ${layerName} criada com sucesso`);
+                    
+                    // Atualizar status
+                    if (statusElement) {
+                        statusElement.textContent = 'Carregado';
+                        statusElement.className = 'layer-status loaded';
+                    }
+                    
+                    // Adicionar a camada ao mapa se estiver marcada como ativa
+                    const checkbox = document.getElementById(layerName);
+                    if (checkbox && checkbox.checked) {
+                        layers[layerName].addTo(map);
+                        console.log(`Camada ${layerName} adicionada ao mapa`);
+                        
+                        // Ajustar o zoom para mostrar todas as features
+                        setTimeout(() => {
+                            if (layers[layerName].getBounds && layers[layerName].getBounds().isValid()) {
+                                map.fitBounds(layers[layerName].getBounds());
+                                console.log(`Zoom ajustado para ${layerName}`);
+                            }
+                        }, 100);
+                    }
+                })
+                .catch(error => {
+                    console.error(`Erro ao carregar ${fileName}:`, error);
+                    if (statusElement) {
+                        statusElement.textContent = 'Erro';
+                        statusElement.className = 'layer-status error';
+                    }
+                    // Mostrar mensagem de erro no console e criar uma camada vazia
+                    layers[layerName] = L.geoJSON();
+                });
+        }
+        
+        // Função para carregar arquivos automaticamente quando checkbox for marcado
+        function loadLayerOnCheck(layerName, fileName) {
+            if (!layers[layerName]) {
+                loadGeoJSONLayer(fileName, layerName);
+            }
+        }
+        
+        // Controle de basemaps
+        document.querySelectorAll('.basemap-option').forEach(button => {
+            button.addEventListener('click', function() {
+                const basemapType = this.dataset.basemap;
+                
+                // Remover basemap atual
+                map.removeLayer(basemaps[currentBasemap]);
+                
+                // Adicionar novo basemap
+                basemaps[basemapType].addTo(map);
+                currentBasemap = basemapType;
+                
+                // Atualizar UI
+                document.querySelectorAll('.basemap-option').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Atualizar informações
+                const basemapNames = {
+                    'osm': 'OpenStreetMap',
+                    'satellite': 'Satélite',
+                    'terrain': 'Terreno'
+                };
+                document.getElementById('current-basemap').textContent = basemapNames[basemapType];
+            });
+        });
+        
+        // Controle de camadas
+        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const layerName = this.id;
+                console.log(`Checkbox ${layerName} alterado para: ${this.checked}`);
+                
+                if (this.checked) {
+                    // Carregar camada automaticamente se não foi carregada ainda
+                    if (!layers[layerName]) {
+                        const fileNames = {
+                            'car1': 'car_1.geojson',
+                            'car22102025': 'car_22102025.geojson',
+                            'desmatamento': 'desmatamento.geojson',
+                            'embargos': 'embargos.geojson',
+                            'urucui': 'urucui.geojson'
+                        };
+                        
+                        const fileName = fileNames[layerName];
+                        if (fileName) {
+                            console.log(`Carregando ${fileName} automaticamente...`);
+                            loadLayerOnCheck(layerName, fileName);
+                        }
+                    }
+                    
+                    // Adicionar camada se ela já foi carregada
+                    if (layers[layerName]) {
+                        layers[layerName].addTo(map);
+                        console.log(`Camada ${layerName} adicionada ao mapa via checkbox`);
+                        
+                        // Ajustar zoom se necessário
+                        setTimeout(() => {
+                            if (layers[layerName].getBounds && layers[layerName].getBounds().isValid()) {
+                                map.fitBounds(layers[layerName].getBounds());
+                                console.log(`Zoom ajustado para ${layerName} via checkbox`);
+                            }
+                        }, 100);
+                    }
+                } else {
+                    // Remover camada
+                    if (layers[layerName]) {
+                        map.removeLayer(layers[layerName]);
+                        console.log(`Camada ${layerName} removida do mapa via checkbox`);
+                    }
+                }
+                
+                updateActiveLayersInfo();
+            });
+        });
+        
+        // Função para forçar a visualização de todas as camadas
+        function forceShowAllLayers() {
+            console.log('Forçando visualização de todas as camadas...');
+            Object.keys(layers).forEach(layerName => {
+                if (layers[layerName]) {
+                    layers[layerName].addTo(map);
+                    console.log(`Camada ${layerName} forçada a aparecer`);
+                }
+            });
+        }
+        
+        // Inicializar status das camadas
+        function initializeLayerStatus() {
+            const layerNames = ['car1', 'car22102025', 'desmatamento', 'embargos', 'urucui'];
+            layerNames.forEach(layerName => {
+                const statusElement = document.getElementById(`${layerName}-status`);
+                if (statusElement) {
+                    statusElement.textContent = 'Pronto';
+                    statusElement.className = 'layer-status';
+                }
+            });
+        }
+        
+        // Inicializar status das camadas
+        initializeLayerStatus();
+        
+        // Botão de debug
+        document.getElementById('debug-btn').addEventListener('click', function() {
+            console.log('=== DEBUG CAMADAS ===');
+            console.log('Camadas carregadas:', Object.keys(layers));
+            console.log('Detalhes das camadas:', layers);
+            
+            Object.keys(layers).forEach(layerName => {
+                if (layers[layerName]) {
+                    console.log(`Camada ${layerName}:`, layers[layerName]);
+                    console.log(`Camada ${layerName} no mapa:`, map.hasLayer(layers[layerName]));
+                    if (layers[layerName].getBounds) {
+                        console.log(`Bounds da camada ${layerName}:`, layers[layerName].getBounds());
+                    }
+                }
+            });
+            
+            // Forçar visualização de todas as camadas
+            forceShowAllLayers();
+            
+            // Ajustar zoom para mostrar todas as camadas
+            const bounds = L.latLngBounds();
+            Object.keys(layers).forEach(layerName => {
+                if (layers[layerName] && layers[layerName].getBounds && layers[layerName].getBounds().isValid()) {
+                    bounds.extend(layers[layerName].getBounds());
+                }
+            });
+            
+            if (bounds.isValid()) {
+                map.fitBounds(bounds);
+                console.log('Zoom ajustado para mostrar todas as camadas');
+            }
+        });
+        
+        // Atualizar informações do mapa
+        function updateMapInfo() {
+            const zoom = map.getZoom();
+            const center = map.getCenter();
+            
+            document.getElementById('current-zoom').textContent = zoom;
+            document.getElementById('current-coords').textContent = 
+                `${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}`;
+        }
+        
+        // Atualizar informações das camadas ativas
+        function updateActiveLayersInfo() {
+            const activeLayers = [];
+            document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+                const layerName = checkbox.id;
+                const label = checkbox.nextElementSibling.textContent;
+                activeLayers.push(label);
+            });
+            
+            document.getElementById('active-layers').textContent = 
+                activeLayers.length > 0 ? activeLayers.join(', ') : 'Nenhuma';
+        }
+        
+        // Eventos do mapa
+        map.on('zoomend', updateMapInfo);
+        map.on('moveend', updateMapInfo);
+        
+        // Atualizar informações iniciais
+        updateMapInfo();
+        updateActiveLayersInfo();
+        
+        // Adicionar controle de escala
+        L.control.scale({
+            position: 'bottomright'
+        }).addTo(map);
+        
+        // Adicionar controle de coordenadas
+        const coordControl = L.control({position: 'bottomleft'});
+        coordControl.onAdd = function(map) {
+            const div = L.DomUtil.create('div', 'coordinate-control');
+            div.style.background = 'white';
+            div.style.padding = '5px 10px';
+            div.style.borderRadius = '5px';
+            div.style.fontSize = '12px';
+            div.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+            div.innerHTML = '<strong>Coordenadas:</strong><br><span id="mouse-coords">Clique no mapa</span>';
+            return div;
+        };
+        coordControl.addTo(map);
+        
+        // Atualizar coordenadas do mouse
+        map.on('mousemove', function(e) {
+            const coords = e.latlng;
+            document.getElementById('mouse-coords').textContent = 
+                `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`;
+        });
+        
+        // Controle de zoom customizado
+        document.getElementById('zoom-in').addEventListener('click', function() {
+            map.zoomIn();
+        });
+        
+        document.getElementById('zoom-out').addEventListener('click', function() {
+            map.zoomOut();
+        });
+        
+        // Função para centralizar em Uruçuí
+        function centerOnUrucui() {
+            map.setView([-7.2253, -44.5561], 12);
+        }
+        
+        // Adicionar botão para centralizar em Uruçuí
+        const urucuiBtn = L.control({position: 'topright'});
+        urucuiBtn.onAdd = function(map) {
+            const div = L.DomUtil.create('div', 'urucui-control');
+            div.style.background = 'white';
+            div.style.padding = '5px 10px';
+            div.style.borderRadius = '5px';
+            div.style.fontSize = '12px';
+            div.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+            div.style.cursor = 'pointer';
+            div.innerHTML = '<strong>🏠 Uruçuí</strong>';
+            div.onclick = centerOnUrucui;
+            return div;
+        };
+        urucuiBtn.addTo(map);
+    </script>
+</body>
+</html>

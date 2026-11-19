@@ -1,0 +1,35 @@
+RU* Criação do Dashbord web
+**Python - linguagem de progamação
+** Streamlit - framework base para escrever o dashbord
+**Plotly - criação dos gráficos dinâmicos
+** Folium - construção dos mapas interativos
+
+1. Criação do ambeinte virtual no anaconda;
+
+2. Instalação das bibliotecas 
+
+3. Compreensão dos elementos do streamilit
+
+4. Propor elementos para o dashbord
+
+Passos: 
+1. no menu inciar - abrir o anaconda prompt
+2. conda create -- name mab-dashboards
+3. conda activate mba_dashboards (conda info -- envs - lista todos os ambientes criados)
+4. instalar a biblioteca streamlit - conda install -c conda-forge streamlit
+
+5. Abrir o visual code
+5.1 localizar a pasta: dir
+5.2 sair da pasta: cd..
+ 
+6. Criar a pasta onde estao os dados
+7. streamlit run  .\Dados\home.py
+
+> inserir mapas:
+8. instalar o folium e o streamlit-folium
+8. import folium
+9. from streamlit_folium import folium_static
+
+
+
+
