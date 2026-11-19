@@ -32,11 +32,8 @@ import geopandas as gpd
 import numpy as np
 # Função personalizada do projeto para descobrir o código EPSG da zona UTM ideal em áreas locais
 from Dados.zona_utm import calcular_utm
-# Biblioteca para recarregar módulos auxiliares (como Dados.utils) quando editados
-import importlib
 # Dicionários personalizados com as cores RGBA e os nomes das classes do MapBiomas em português
 import Dados.utils as dados_utils
-importlib.reload(dados_utils)
 mapbiomas_colors = dados_utils.color_map
 mapbiomas_classes = dados_utils.value_to_class
 
