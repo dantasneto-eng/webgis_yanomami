@@ -92,10 +92,19 @@ st.markdown(
 # ==============================================================================
 
 # Caminhos relativos das bases ambientais armazenadas na pasta Dados
+# Usa as versões leves recortadas para a TI Yanomami (< 1 MB) quando disponíveis, permitindo deploy no GitHub/Streamlit Cloud
 EMBARGO = "Dados/embargos/embargos_ibama.parquet"
-DESMATAMENTO = "Dados/prodes/prodes.parquet"
+DESMATAMENTO = (
+    "Dados/prodes/yanomami_prodes.parquet"
+    if os.path.exists("Dados/prodes/yanomami_prodes.parquet")
+    else "Dados/prodes/prodes.parquet"
+)
 TIS = "Dados/tis_poligonais/tis.parquet"
-ALERTAS = "Dados/mapbiomas_alertas/mapbiomas_alertas.parquet"
+ALERTAS = (
+    "Dados/mapbiomas_alertas/yanomami_alertas.parquet"
+    if os.path.exists("Dados/mapbiomas_alertas/yanomami_alertas.parquet")
+    else "Dados/mapbiomas_alertas/mapbiomas_alertas.parquet"
+)
 
 # Caminhos padrão focados na Terra Indígena Yanomami
 YANOMAMI_POLIGONO = "Dados/tis_poligonais/YANOMAMI.geojson"
