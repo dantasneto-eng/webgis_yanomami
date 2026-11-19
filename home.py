@@ -1369,9 +1369,10 @@ if st.session_state.pagina_atual == "Mapa":
 
         # Adiciona opção de fundo limpo no LayerControl do próprio mapa quando o basemap estiver ativo
         if mostrar_basemap:
+            # Define atribuição não vazia exigida pelo Folium para camadas de tiles personalizadas
             folium.TileLayer(
                 tiles="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
-                attr="",
+                attr="Sem mapa de fundo",
                 name="Sem Mapa de Fundo",
                 overlay=False,
                 control=True,
