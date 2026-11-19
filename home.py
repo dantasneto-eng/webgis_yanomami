@@ -644,6 +644,33 @@ def calcular_evolucao_mineracao_col11() -> pd.DataFrame:
     return pd.DataFrame(linhas)
 
 
+@st.cache_data
+def calcular_evolucao_desmatamento_col11() -> pd.DataFrame:
+    """Calcula a área antrópica acumulada (desmatamento) e cobertura florestal no MapBiomas Col. 11 (2004, 2014 e 2024)."""
+    classes_antropicas = (15, 21, 25, 30, 31, 41)
+    linhas = []
+    for ano, caminho in sorted(MAPBIOMAS_YANOMAMI_ANOS.items()):
+        if not os.path.exists(caminho):
+            continue
+        with rasterio.open(caminho) as src:
+            arr = src.read(1)
+            px_floresta = int(np.count_nonzero(np.isin(arr, (3, 6))))
+            px_antropico = int(np.count_nonzero(np.isin(arr, classes_antropicas)))
+            px_min = int(np.count_nonzero(arr == 30))
+            area_floresta = round(px_floresta * 0.09, 2)
+            area_antropico = round(px_antropico * 0.09, 2)
+            area_min = round(px_min * 0.09, 2)
+            linhas.append({
+                "Ano": str(ano),
+                "AnoNum": ano,
+                "Floresta_ha": area_floresta,
+                "Antropico_ha": area_antropico,
+                "Mineracao_ha": area_min,
+                "Outros_Antropicos_ha": round(area_antropico - area_min, 2),
+            })
+    return pd.DataFrame(linhas)
+
+
 def renderizar_painel_mineracao():
     df_col11_min = calcular_evolucao_mineracao_col11()
     anos_disponiveis = [2004, 2014, 2024]
@@ -1381,11 +1408,21 @@ if st.session_state.pagina_atual == "Mapa":
 elif st.session_state.pagina_atual == "Gráficos e Dados":
     # KPIs principais focados nos anos 2004, 2014 e 2024 (MapBiomas Col. 11)
     df_col11_graf = calcular_evolucao_mineracao_col11()
+    df_desm_col11 = calcular_evolucao_desmatamento_col11()
     areas_col11 = {int(r["AnoNum"]): float(r["Area_ha"]) for _, r in df_col11_graf.iterrows()} if len(df_col11_graf) > 0 else {}
+    desm_por_ano = {int(r["AnoNum"]): float(r["Antropico_ha"]) for _, r in df_desm_col11.iterrows()} if len(df_desm_col11) > 0 else {}
+    flor_por_ano = {int(r["AnoNum"]): float(r["Floresta_ha"]) for _, r in df_desm_col11.iterrows()} if len(df_desm_col11) > 0 else {}
+
     a04 = areas_col11.get(2004, 0.0)
     a14 = areas_col11.get(2014, 0.0)
     a24 = areas_col11.get(2024, 0.0)
     var_pct = ((a24 - a04) / a04 * 100) if a04 > 0 else 0.0
+
+    d04 = desm_por_ano.get(2004, 0.0)
+    d14 = desm_por_ano.get(2014, 0.0)
+    d24 = desm_por_ano.get(2024, 0.0)
+    var_desm_pct = ((d24 - d04) / d04 * 100) if d04 > 0 else 0.0
+    dif_flor = flor_por_ano.get(2024, 0.0) - flor_por_ano.get(2004, 0.0)
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("📐 Área Total TI", f"{area_total_ha:,.2f} ha", f"EPSG:{epsg_metrico}")
@@ -1393,9 +1430,16 @@ elif st.session_state.pagina_atual == "Gráficos e Dados":
     c3.metric("⛏️ Mineração 2014", f"{a14:,.2f} ha", "MapBiomas Col. 11")
     c4.metric("⛏️ Mineração 2024", f"{a24:,.2f} ha", f"+{var_pct:,.1f}% desde 2004")
 
-    subtab_uso, subtab_min, subtab_emb, subtab_exp = st.tabs([
+    k_d1, k_d2, k_d3, k_d4 = st.columns(4)
+    k_d1.metric("🪓 Área Antrópica / Desmat. 2004", f"{d04:,.2f} ha", "MapBiomas Col. 11")
+    k_d2.metric("🪓 Área Antrópica / Desmat. 2014", f"{d14:,.2f} ha", "MapBiomas Col. 11")
+    k_d3.metric("🪓 Área Antrópica / Desmat. 2024", f"{d24:,.2f} ha", f"+{var_desm_pct:,.1f}% desde 2004")
+    k_d4.metric("🌲 Floresta Nativa 2024", f"{flor_por_ano.get(2024, 0.0):,.0f} ha", f"{dif_flor:,.0f} ha vs 2004")
+
+    subtab_uso, subtab_min, subtab_desm, subtab_emb, subtab_exp = st.tabs([
         "🌱 Cobertura do Solo",
         "⛏️ Mineração e Garimpo",
+        "🪓 Desmatamento (2004–2024)",
         "🚫 Embargos IBAMA",
         "🔎 Explorador de Dados",
     ])
@@ -1528,6 +1572,79 @@ elif st.session_state.pagina_atual == "Gráficos e Dados":
 
     with subtab_min:
         renderizar_painel_mineracao()
+
+    with subtab_desm:
+        st.caption(
+            "📌 **Nota metodológica:** Os valores de **2004, 2014 e 2024** representam a área antrópica acumulada (desmatamento consolidado: pastagem, mosaico de usos, áreas não vegetadas, mineração, aquicultura e lavouras) no **MapBiomas Col. 11 (30 m)**. Já os alertas vetoriais do **PRODES/Alertas** cobrem o período de **2019 a 2024**."
+        )
+        if len(df_desm_col11) > 0:
+            gd1, gd2 = st.columns(2)
+            with gd1:
+                df_melt = df_desm_col11.melt(
+                    id_vars=["Ano"],
+                    value_vars=["Mineracao_ha", "Outros_Antropicos_ha"],
+                    var_name="Tipo",
+                    value_name="Área (ha)",
+                )
+                df_melt["Tipo"] = df_melt["Tipo"].map({
+                    "Mineracao_ha": "Mineração (Classe 30)",
+                    "Outros_Antropicos_ha": "Outros Usos Antrópicos (Pastagem, Mosaico, etc.)",
+                })
+                fig_desm_col11 = px.bar(
+                    df_melt,
+                    x="Ano",
+                    y="Área (ha)",
+                    color="Tipo",
+                    barmode="stack",
+                    text_auto=".1f",
+                    title="Área Antrópica / Desmatamento Acumulado (2004, 2014 e 2024)",
+                    color_discrete_map={
+                        "Mineração (Classe 30)": "#8e44ad",
+                        "Outros Usos Antrópicos (Pastagem, Mosaico, etc.)": "#e67e22",
+                    },
+                )
+                fig_desm_col11.update_layout(height=400, legend_title_text="")
+                st.plotly_chart(fig_desm_col11, use_container_width=True)
+
+            with gd2:
+                if len(entrada_desmat) > 0 and "ANODETEC" in entrada_desmat.columns:
+                    df_prodes_anual = (
+                        entrada_desmat.assign(Ano=entrada_desmat["ANODETEC"].astype(int).astype(str))
+                        .groupby("Ano", as_index=False)
+                        .agg(Alertas=("AREAHA", "count"), Area_ha=("AREAHA", "sum"))
+                        .sort_values("Ano")
+                    )
+                    df_prodes_anual["Area_ha"] = pd.to_numeric(df_prodes_anual["Area_ha"], errors="coerce").round(2)
+                    fig_prodes = px.bar(
+                        df_prodes_anual,
+                        x="Ano",
+                        y="Area_ha",
+                        text_auto=".1f",
+                        title="Desmatamento Detectado por Ano (PRODES / Alertas 2019–2024)",
+                        labels={"Area_ha": "Área (ha)"},
+                        color_discrete_sequence=["#c0392b"],
+                    )
+                    fig_prodes.update_layout(height=400)
+                    st.plotly_chart(fig_prodes, use_container_width=True)
+                else:
+                    st.info("Sem registros anuais de alertas PRODES para a área.")
+
+            st.markdown("#### Tabela Síntese — Desmatamento / Uso Antrópico e Floresta (2004, 2014 e 2024)")
+            df_desm_tab = df_desm_col11[["Ano", "Antropico_ha", "Mineracao_ha", "Outros_Antropicos_ha", "Floresta_ha"]].rename(
+                columns={
+                    "Antropico_ha": "Área Antrópica / Desmat. Total (ha)",
+                    "Mineracao_ha": "Mineração (ha)",
+                    "Outros_Antropicos_ha": "Outros Usos Antrópicos (ha)",
+                    "Floresta_ha": "Floresta Nativa 3+6 (ha)",
+                }
+            )
+            st.dataframe(df_desm_tab, use_container_width=True, hide_index=True)
+            st.download_button(
+                label="⬇️ Baixar Desmatamento 2004/2014/2024 (CSV)",
+                data=df_desm_tab.to_csv(index=False).encode("utf-8-sig"),
+                file_name="desmatamento_yanomami_2004_2014_2024.csv",
+                mime="text/csv",
+            )
 
     with subtab_emb:
         renderizar_painel_embargos()
