@@ -49,7 +49,7 @@ mapbiomas_classes = dados_utils.value_to_class
 # Mantém o menu lateral aberto por padrão para exibir os botões de navegação
 st.set_page_config(
     page_title="WebGIS Yanomami — Monitoramento de Mineração",
-    page_icon="⛏️",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -153,19 +153,19 @@ ESA_CLASSES = {
 # ==============================================================================
 
 # Define a página inicial como "Mapa" para abrir direto no Mapa Interativo da TI Yanomami
-if "pagina_atual" not in st.session_state:
+if "pagina_atual"not in st.session_state:
     st.session_state.pagina_atual = "Mapa"
 
 # Mantém o foco na Terra Indígena Yanomami ativado por padrão ao abrir o site
-if "modo_yanomami" not in st.session_state:
+if "modo_yanomami"not in st.session_state:
     st.session_state.modo_yanomami = True
 
 # Contador usado pelo botão "Centralizar Mapa" para resetar o enquadramento do mapa
-if "mapa_reset_id" not in st.session_state:
+if "mapa_reset_id"not in st.session_state:
     st.session_state.mapa_reset_id = 0
 
 # Ano ativo na escala temporal do mapa (padrão 2024 - MapBiomas Col. 11)
-if "ano_escala_temporal" not in st.session_state:
+if "ano_escala_temporal"not in st.session_state:
     st.session_state.ano_escala_temporal = 2024
 
 
@@ -305,11 +305,11 @@ def processar_analise_vetorial(poligono_bytes: bytes, poligono_nome: str):
     entrada_alertas, area_alertas_ha = cruzar_camada(gdf_alertas, poligono_4674, epsg_metrico)
 
     # Filtra os alertas do MapBiomas cujo vetor de pressão (VPRESSAO) seja mineração ou garimpo ilegal
-    if len(entrada_alertas) > 0 and "VPRESSAO" in entrada_alertas.columns:
+    if len(entrada_alertas) > 0 and "VPRESSAO"in entrada_alertas.columns:
         mask_min = entrada_alertas["VPRESSAO"].isin(["ilegal_mining", "mining"])
         alertas_mineracao = entrada_alertas[mask_min].copy()
         # Converte o ano de detecção para número inteiro para facilitar os filtros na interface
-        if "ANODETEC" in alertas_mineracao.columns:
+        if "ANODETEC"in alertas_mineracao.columns:
             alertas_mineracao["ANODETEC"] = pd.to_numeric(alertas_mineracao["ANODETEC"], errors="coerce").fillna(0).astype(int)
         area_mineracao_ha = calcular_area_ha(alertas_mineracao, epsg_metrico)
     else:
@@ -431,7 +431,7 @@ def processar_raster_otimizado(raster_fonte, poligono_bytes: bytes, poligono_nom
 
         paleta_cores = ESA_COLORS if eh_esa else mapbiomas_colors
         dicionario_classes = ESA_CLASSES if eh_esa else mapbiomas_classes
-        fonte_raster = "ESA WorldCover 10m" if eh_esa else "MapBiomas"
+        fonte_raster = "ESA WorldCover 10m"if eh_esa else "MapBiomas"
 
         # Estima o tamanho real do pixel original em metros (10m para ESA ou ~30m para MapBiomas)
         pixel_m2_base = 100.0 if eh_esa else 900.0
@@ -481,21 +481,21 @@ def processar_raster_otimizado(raster_fonte, poligono_bytes: bytes, poligono_nom
 # ==============================================================================
 
 # Título e navegação limpa do menu lateral (2 funções principais)
-st.sidebar.markdown("### 🛰️ WebGIS Yanomami")
+st.sidebar.markdown("### WebGIS Yanomami")
 st.sidebar.caption("Monitoramento Ambiental • TCC")
 
 st.sidebar.divider()
 
 paginas = [
-    ("Mapa", "🗺️ Mapa Interativo"),
-    ("Gráficos e Dados", "📊 Dados e Gráficos"),
+    ("Mapa", "Mapa Interativo"),
+    ("Gráficos e Dados", "Dados e Gráficos"),
 ]
 
 if st.session_state.pagina_atual not in ("Mapa", "Gráficos e Dados"):
     st.session_state.pagina_atual = "Mapa"
 
 for chave_pagina, rotulo_pagina in paginas:
-    tipo_botao = "primary" if st.session_state.pagina_atual == chave_pagina else "secondary"
+    tipo_botao = "primary"if st.session_state.pagina_atual == chave_pagina else "secondary"
     if st.sidebar.button(rotulo_pagina, key=f"side_{chave_pagina}", type=tipo_botao, use_container_width=True):
         ir_para(chave_pagina)
         st.rerun()
@@ -503,7 +503,7 @@ for chave_pagina, rotulo_pagina in paginas:
 st.sidebar.divider()
 
 # Seção expansível opcional caso o usuário queira subir outro polígono e raster manualmente
-with st.sidebar.expander("📂 Analisar outra área (Opcional)", expanded=False):
+with st.sidebar.expander("Analisar outra área (Opcional)", expanded=False):
     poligono_subido = st.file_uploader(
         label="Outro polígono (.geojson, .parquet, .gpkg, .zip)",
         type=["geojson", "json", "parquet", "gpkg", "zip"],
@@ -543,7 +543,7 @@ else:
             nome_low = arq.lower()
             caminho_arq = os.path.join("Dados", arq)
             if nome_low.endswith((".tif", ".tiff")) and caminho_arq.replace("\\", "/") not in MAPBIOMAS_YANOMAMI_ANOS.values():
-                if "yanomami" in nome_low or "esa_worldcover" in nome_low:
+                if "yanomami"in nome_low or "esa_worldcover"in nome_low:
                     rasters_disponiveis[arq] = caminho_arq
 
     nomes_rasters = list(rasters_disponiveis.keys())
@@ -552,7 +552,7 @@ else:
     idx_padrao = nomes_rasters.index(rotulo_padrao) if rotulo_padrao in nomes_rasters else 0
 
     raster_escolhido = st.sidebar.selectbox(
-        "📅 Raster / Ano (TI Yanomami):",
+        "Raster / Ano (TI Yanomami):",
         options=nomes_rasters,
         index=idx_padrao,
     )
@@ -561,7 +561,7 @@ else:
     raster_tamanho = os.path.getsize(raster_fonte)
     titulo_area = "Terra Indígena Yanomami (RR / AM)"
 
-with st.sidebar.expander("📚 Metodologia e Fontes", expanded=False):
+with st.sidebar.expander("Metodologia e Fontes", expanded=False):
     st.markdown(
         """
         - **Cobertura do Solo:** MapBiomas Coleção 11 (30 m) — 2004, 2014 e 2024
@@ -604,7 +604,7 @@ if st.session_state.get("cache_raster_key") != chave_raster:
             st.session_state.cache_raster_res = processar_raster_otimizado(raster_fonte, poligono_bytes, poligono_nome)
             st.session_state.cache_raster_key = chave_raster
     except ValueError:
-        st.error("❌ O polígono selecionado não se sobrepõe ao raster informado.")
+        st.error("O polígono selecionado não se sobrepõe ao raster informado.")
         st.stop()
 
 res_raster = st.session_state.cache_raster_res
@@ -684,7 +684,7 @@ def renderizar_painel_mineracao():
             default=anos_disponiveis,
         )
     with f2:
-        tipos_disponiveis = sorted(alertas_mineracao["VPRESSAO"].dropna().unique().tolist()) if len(alertas_mineracao) > 0 and "VPRESSAO" in alertas_mineracao.columns else []
+        tipos_disponiveis = sorted(alertas_mineracao["VPRESSAO"].dropna().unique().tolist()) if len(alertas_mineracao) > 0 and "VPRESSAO"in alertas_mineracao.columns else []
         tipos_sel = st.multiselect(
             "Filtrar por vetor de pressão (Alertas):",
             options=tipos_disponiveis,
@@ -696,9 +696,9 @@ def renderizar_painel_mineracao():
 
     # Filtra alertas de mineração apenas para os anos selecionados (ex.: 2024) e vetor de pressão
     df_min_filtrado = alertas_mineracao.copy()
-    if len(anos_sel) > 0 and "ANODETEC" in df_min_filtrado.columns:
+    if len(anos_sel) > 0 and "ANODETEC"in df_min_filtrado.columns:
         df_min_filtrado = df_min_filtrado[df_min_filtrado["ANODETEC"].isin(anos_sel)]
-    if len(tipos_sel) > 0 and "VPRESSAO" in df_min_filtrado.columns:
+    if len(tipos_sel) > 0 and "VPRESSAO"in df_min_filtrado.columns:
         df_min_filtrado = df_min_filtrado[df_min_filtrado["VPRESSAO"].isin(tipos_sel)]
 
     # Exibe 4 KPIs mostrando exatamente 2004, 2014, 2024 e Embargos IBAMA
@@ -709,10 +709,10 @@ def renderizar_painel_mineracao():
     crescimento = ((a2024 - a2004) / a2004 * 100) if a2004 > 0 else 0.0
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("⛏️ Mineração 2004 (Col. 11)", f"{a2004:,.2f} ha", "MapBiomas Classe 30")
-    m2.metric("⛏️ Mineração 2014 (Col. 11)", f"{a2014:,.2f} ha", "MapBiomas Classe 30")
-    m3.metric("⛏️ Mineração 2024 (Col. 11)", f"{a2024:,.2f} ha", f"+{crescimento:,.1f}% desde 2004")
-    m4.metric("🚫 Embargos Minerais (IBAMA)", f"{len(embargos_mineracao)}", f"{area_embargo_mineracao_ha:,.2f} ha embargados")
+    m1.metric("Mineração 2004 (Col. 11)", f"{a2004:,.2f} ha", "MapBiomas Classe 30")
+    m2.metric("Mineração 2014 (Col. 11)", f"{a2014:,.2f} ha", "MapBiomas Classe 30")
+    m3.metric("Mineração 2024 (Col. 11)", f"{a2024:,.2f} ha", f"+{crescimento:,.1f}% desde 2004")
+    m4.metric("Embargos Minerais (IBAMA)", f"{len(embargos_mineracao)}", f"{area_embargo_mineracao_ha:,.2f} ha embargados")
 
     st.write("")
     g_min1, g_min2 = st.columns(2)
@@ -732,7 +732,7 @@ def renderizar_painel_mineracao():
             st.plotly_chart(fig_ano, use_container_width=True)
 
     with g_min2:
-        if len(df_min_filtrado) > 0 and "MUNICIPIO" in df_min_filtrado.columns:
+        if len(df_min_filtrado) > 0 and "MUNICIPIO"in df_min_filtrado.columns:
             df_mun = (
                 df_min_filtrado.groupby("MUNICIPIO", as_index=False)
                 .agg(Alertas=("CODEALERTA", "count"), Area_ha=("AREAHA", "sum"))
@@ -756,8 +756,8 @@ def renderizar_painel_mineracao():
 
     # Tabelas detalhadas com botão de download em CSV
     tab_m1, tab_m2 = st.tabs([
-        f"⛏️ Alertas de Mineração ({len(df_min_filtrado)})",
-        f"🚫 Embargos de Mineração IBAMA ({len(embargos_mineracao)})",
+        f"Alertas de Mineração ({len(df_min_filtrado)})",
+        f"Embargos de Mineração IBAMA ({len(embargos_mineracao)})",
     ])
 
     with tab_m1:
@@ -765,7 +765,7 @@ def renderizar_painel_mineracao():
         st.dataframe(df_min_tab, use_container_width=True, hide_index=True)
         csv_min = df_min_tab.to_csv(index=False).encode("utf-8-sig")
         st.download_button(
-            label="⬇️ Baixar Alertas de Mineração (CSV)",
+            label="Baixar Alertas de Mineração (CSV)",
             data=csv_min,
             file_name="alertas_mineracao_yanomami.csv",
             mime="text/csv",
@@ -776,7 +776,7 @@ def renderizar_painel_mineracao():
         st.dataframe(df_emb_min_tab, use_container_width=True, hide_index=True)
         csv_emb_min = df_emb_min_tab.to_csv(index=False).encode("utf-8-sig")
         st.download_button(
-            label="⬇️ Baixar Embargos de Mineração IBAMA (CSV)",
+            label="Baixar Embargos de Mineração IBAMA (CSV)",
             data=csv_emb_min,
             file_name="embargos_mineracao_yanomami.csv",
             mime="text/csv",
@@ -796,7 +796,7 @@ def renderizar_painel_embargos():
         df_emb = pd.DataFrame(entrada_embargo.drop(columns=["geometry"], errors="ignore")).copy()
         df_emb["qtd_area_e_num"] = pd.to_numeric(df_emb.get("qtd_area_e", 0), errors="coerce").fillna(0.0)
         df_emb["valor_tad_num"] = pd.to_numeric(df_emb.get("valor_tad", 0), errors="coerce").fillna(0.0)
-        if "data_tad" in df_emb.columns:
+        if "data_tad"in df_emb.columns:
             # Extrai o ano da data do termo de embargo (suporta formatos ISO ou DD/MM/AAAA)
             anos_dt = pd.to_datetime(df_emb["data_tad"], errors="coerce").dt.year
             anos_regex = pd.to_numeric(df_emb["data_tad"].astype(str).str.extract(r"((?:19|20)\d{2})")[0], errors="coerce")
@@ -810,7 +810,7 @@ def renderizar_painel_embargos():
         with fe0:
             anos_emb_sel = st.multiselect("Filtrar por Ano:", options=anos_emb_disp, default=anos_emb_disp)
 
-        ufs_disp = sorted(df_emb["sig_uf"].dropna().astype(str).unique().tolist()) if "sig_uf" in df_emb.columns else []
+        ufs_disp = sorted(df_emb["sig_uf"].dropna().astype(str).unique().tolist()) if "sig_uf"in df_emb.columns else []
         with fe1:
             ufs_sel = st.multiselect("Filtrar por UF:", options=ufs_disp, default=ufs_disp)
 
@@ -818,10 +818,10 @@ def renderizar_painel_embargos():
         df_por_uf = df_emb.copy()
         if len(anos_emb_sel) > 0:
             df_por_uf = df_por_uf[df_por_uf["ano_embargo"].isin(anos_emb_sel)]
-        if len(ufs_sel) > 0 and "sig_uf" in df_por_uf.columns:
+        if len(ufs_sel) > 0 and "sig_uf"in df_por_uf.columns:
             df_por_uf = df_por_uf[df_por_uf["sig_uf"].astype(str).isin(ufs_sel)]
 
-        muns_disp = sorted(df_por_uf["nom_munici"].dropna().astype(str).unique().tolist()) if "nom_munici" in df_por_uf.columns else []
+        muns_disp = sorted(df_por_uf["nom_munici"].dropna().astype(str).unique().tolist()) if "nom_munici"in df_por_uf.columns else []
         with fe2:
             muns_sel = st.multiselect("Filtrar por Município:", options=muns_disp, default=muns_disp)
 
@@ -834,7 +834,7 @@ def renderizar_painel_embargos():
 
         # Aplica os filtros selecionados ao DataFrame de embargos
         df_emb_filt = df_por_uf.copy()
-        if len(muns_sel) > 0 and "nom_munici" in df_emb_filt.columns:
+        if len(muns_sel) > 0 and "nom_munici"in df_emb_filt.columns:
             df_emb_filt = df_emb_filt[df_emb_filt["nom_munici"].astype(str).isin(muns_sel)]
         if filtro_motivo == "Apenas Mineração / Garimpo":
             txt_tad = df_emb_filt.get("des_tad", pd.Series("", index=df_emb_filt.index)).fillna("").astype(str)
@@ -848,21 +848,21 @@ def renderizar_painel_embargos():
         total_autos = len(df_emb_filt)
         area_filt_ha = float(df_emb_filt["qtd_area_e_num"].sum())
         valor_total_rs = float(df_emb_filt["valor_tad_num"].sum())
-        municipios_emb = int(df_emb_filt["nom_munici"].nunique()) if "nom_munici" in df_emb_filt.columns and total_autos > 0 else 0
+        municipios_emb = int(df_emb_filt["nom_munici"].nunique()) if "nom_munici"in df_emb_filt.columns and total_autos > 0 else 0
 
         # Exibe 4 KPIs no mesmo padrão visual da aba de Mineração
         k1, k2, k3, k4 = st.columns(4)
-        k1.metric("🚫 Total de Embargos", f"{total_autos:,}", f"{len(embargos_mineracao)} ligados à mineração")
-        k2.metric("📐 Área Embargada", f"{area_filt_ha:,.2f} ha", f"Interseção real: {area_embargo_ha:,.2f} ha")
-        k3.metric("💰 Valor Total (TAD)", f"R$ {valor_total_rs:,.2f}", "Autos de embargo IBAMA")
-        k4.metric("🏙️ Municípios Atingidos", f"{municipios_emb}", "com termos de embargo")
+        k1.metric("Total de Embargos", f"{total_autos:,}", f"{len(embargos_mineracao)} ligados à mineração")
+        k2.metric("Área Embargada", f"{area_filt_ha:,.2f} ha", f"Interseção real: {area_embargo_ha:,.2f} ha")
+        k3.metric("Valor Total (TAD)", f"R$ {valor_total_rs:,.2f}", "Autos de embargo IBAMA")
+        k4.metric("Municípios Atingidos", f"{municipios_emb}", "com termos de embargo")
 
         st.write("")
         # Divide a tela entre gráfico por município e gráfico por UF/tipo de infração
         ge1, ge2 = st.columns(2)
 
         with ge1:
-            if total_autos > 0 and "nom_munici" in df_emb_filt.columns:
+            if total_autos > 0 and "nom_munici"in df_emb_filt.columns:
                 df_emb_mun = (
                     df_emb_filt.groupby("nom_munici", as_index=False)
                     .agg(Embargos=("numero_tad", "count"), Area_ha=("qtd_area_e_num", "sum"))
@@ -911,12 +911,12 @@ def renderizar_painel_embargos():
             c for c in ["numero_tad", "data_tad", "nom_munici", "sig_uf", "qtd_area_e", "valor_tad", "sit_embarg", "des_infrac", "des_tad"]
             if c in df_emb_filt.columns
         ]
-        st.markdown(f"#### 📋 Lista de Embargos ({total_autos} registros)")
+        st.markdown(f"#### Lista de Embargos ({total_autos} registros)")
         st.dataframe(df_emb_filt[colunas_exibir], use_container_width=True, hide_index=True)
 
         csv_emb_full = df_emb_filt.drop(columns=["qtd_area_e_num", "valor_tad_num"], errors="ignore").to_csv(index=False).encode("utf-8-sig")
         st.download_button(
-            label="⬇️ Baixar Embargos IBAMA Filtrados (CSV)",
+            label="Baixar Embargos IBAMA Filtrados (CSV)",
             data=csv_emb_full,
             file_name="embargos_ibama_yanomami.csv",
             mime="text/csv",
@@ -941,7 +941,7 @@ if st.session_state.pagina_atual == "Mapa":
             st.session_state[k_cam] = v_cam
 
     # Ajustes secundários recolhidos por padrão para deixar a tela limpa e o mapa no topo
-    with st.expander("⚙️ Ajustes do Mapa (Mapa de Fundo, Transparência e Centralizar)", expanded=False):
+    with st.expander("Ajustes do Mapa (Mapa de Fundo, Transparência e Centralizar)", expanded=False):
         ctrl1, ctrl2, ctrl3 = st.columns([2, 2, 1])
         with ctrl1:
             mapa_base = st.selectbox(
@@ -960,7 +960,7 @@ if st.session_state.pagina_atual == "Mapa":
             )
         with ctrl3:
             st.write("")
-            if st.button("🎯 Centralizar Mapa", use_container_width=True):
+            if st.button("Centralizar Mapa", use_container_width=True):
                 st.session_state.mapa_reset_id += 1
 
     # Escala temporal focada exatamente nos 3 anos dos rasters MapBiomas Col. 11 (2004, 2014, 2024)
@@ -977,7 +977,7 @@ if st.session_state.pagina_atual == "Mapa":
         col_ano, col_modo, col_kpi_ano = st.columns([2.4, 1.3, 1.3])
         with col_ano:
             ano_mapa_sel = st.select_slider(
-                "⏳ Escala Temporal — Avanço da Mineração (2004 → 2014 → 2024+):",
+                "Escala Temporal — Avanço da Mineração (2004 → 2014 → 2024+):",
                 options=anos_mapa,
                 value=valor_inicial,
             )
@@ -1001,7 +1001,7 @@ if st.session_state.pagina_atual == "Mapa":
         else:
             alertas_mapa = alertas_mineracao[alertas_mineracao["ANODETEC"] == ano_mapa_sel].copy()
 
-        area_min_alertas = float(alertas_mapa["AREAHA"].sum()) if "AREAHA" in alertas_mapa.columns and len(alertas_mapa) > 0 else 0.0
+        area_min_alertas = float(alertas_mapa["AREAHA"].sum()) if "AREAHA"in alertas_mapa.columns and len(alertas_mapa) > 0 else 0.0
         ano_raster_ativo = obter_ano_raster_correspondente(ano_mapa_sel)
         # Busca a área exata (resolução 30m) da classe 30 no MapBiomas Col. 11 para bater 100% com as outras abas
         df_col11_mapa = calcular_evolucao_mineracao_col11()
@@ -1013,21 +1013,21 @@ if st.session_state.pagina_atual == "Mapa":
 
         with col_kpi_ano:
             st.metric(
-                f"⛏️ Mineração ({ano_mapa_sel})",
+                f"Mineração ({ano_mapa_sel})",
                 f"{area_min_raster:,.1f} ha (Col.11 {ano_raster_ativo})",
                 f"{len(alertas_mapa)} alertas ({area_min_alertas:,.1f} ha)",
             )
     elif len(anos_mapa) == 1:
-        st.caption(f"⛏️ Dados de mineração disponíveis para o ano **{anos_mapa[0]}** ({len(alertas_mapa)} alertas).")
+        st.caption(f"Dados de mineração disponíveis para o ano **{anos_mapa[0]}** ({len(alertas_mapa)} alertas).")
 
     # Botões visuais de liga/desliga para camadas (colorido = ligado, cinza = desligado)
-    st.caption("🗂️ **Camadas do Mapa** — clique nos botões para ligar (✅) ou desligar (🚫):")
+    st.caption("**Camadas do Mapa** — clique nos botões para ligar ou desligar (verde = ativo, cinza = desligado):")
     tem_par_comparacao = os.path.exists(MAPBIOMAS_YANOMAMI_ANOS.get(2004, "")) and os.path.exists(MAPBIOMAS_YANOMAMI_ANOS.get(2024, ""))
 
     def botao_camada(col, chave: str, rotulo: str, disabled: bool = False, help_text: str | None = None):
         ativo = st.session_state[chave]
-        texto = f"✅ {rotulo}" if ativo else f"🚫 {rotulo} (Off)"
-        tipo = "primary" if ativo else "secondary"
+        texto = f"{rotulo}"if ativo else f"{rotulo} (Off)"
+        tipo = "primary"if ativo else "secondary"
         if col.button(texto, key=f"btn_{chave}", type=tipo, use_container_width=True, disabled=disabled, help=help_text):
             st.session_state[chave] = not ativo
             st.rerun()
@@ -1057,7 +1057,7 @@ if st.session_state.pagina_atual == "Mapa":
         and not st.session_state.camada_desmat
     )
     if so_poligono_classes:
-        if r2c4.button("🗺️ Voltar Visualização Completa", key="btn_modo_completo", type="secondary", use_container_width=True):
+        if r2c4.button("Voltar Visualização Completa", key="btn_modo_completo", type="secondary", use_container_width=True):
             st.session_state.camada_basemap = True
             st.session_state.camada_poligono = True
             st.session_state.camada_raster = True
@@ -1066,7 +1066,7 @@ if st.session_state.pagina_atual == "Mapa":
             st.rerun()
     else:
         if r2c4.button(
-            "🎯 Só Polígono e Classes",
+            "Só Polígono e Classes",
             key="btn_so_poligono_classes",
             type="secondary",
             use_container_width=True,
@@ -1092,19 +1092,19 @@ if st.session_state.pagina_atual == "Mapa":
     imagem_raster_mapa = res_raster["resized_image"]
     codigos_ativos = None
     if mostrar_raster and len(res_raster["df_uso"]) > 0:
-        with st.expander("🎨 Filtrar Classes do MapBiomas no Mapa (clique para abrir)", expanded=False):
+        with st.expander("Filtrar Classes do MapBiomas no Mapa (clique para abrir)", expanded=False):
             df_classes_disp = res_raster["df_uso"]
             todos_codigos = [int(r["Código"]) for _, r in df_classes_disp.iterrows()]
 
             # Botões rápidos para marcar todas, deixar só mineração ou desmarcar todas as caixas
             b_leg1, b_leg2, b_leg3, _ = st.columns([1, 1.2, 1, 2.8])
-            if b_leg1.button("✅ Ligar todas", use_container_width=True):
+            if b_leg1.button("Ligar todas", use_container_width=True):
                 for cod in todos_codigos:
                     st.session_state[f"chk_classe_{cod}"] = True
-            if b_leg2.button("⛏️ Só Mineração (30)", use_container_width=True):
+            if b_leg2.button("Só Mineração (30)", use_container_width=True):
                 for cod in todos_codigos:
                     st.session_state[f"chk_classe_{cod}"] = (cod == 30)
-            if b_leg3.button("🚫 Desligar todas", use_container_width=True):
+            if b_leg3.button("Desligar todas", use_container_width=True):
                 for cod in todos_codigos:
                     st.session_state[f"chk_classe_{cod}"] = False
 
@@ -1184,7 +1184,7 @@ if st.session_state.pagina_atual == "Mapa":
 
         corpo = "".join(itens_html)
         return f"""
-        <div id="webgis-legenda" style="
+        <div id="webgis-legenda"style="
             position: fixed;
             bottom: 24px;
             right: 16px;
@@ -1199,7 +1199,7 @@ if st.session_state.pagina_atual == "Mapa":
             line-height: 1.5;
             max-width: 260px;
         ">
-            <div style="font-weight:700;margin-bottom:4px;">🗺️ Legenda</div>
+            <div style="font-weight:700;margin-bottom:4px;">Legenda</div>
             <style>
                 #webgis-legenda div span {{
                     display: inline-block;
@@ -1251,7 +1251,7 @@ if st.session_state.pagina_atual == "Mapa":
         res_2004 = st.session_state["cache_cmp_2004"]
         res_2024 = st.session_state["cache_cmp_2024"]
 
-        st.info("🔀 **Modo Comparação Ativo:** Esquerda = **2004** | Direita = **2024** (mova ou dê zoom em qualquer lado para sincronizar).")
+        st.info("**Modo Comparação Ativo:** Esquerda = **2004** | Direita = **2024** (mova ou dê zoom em qualquer lado para sincronizar).")
         m_dual = DualMap(location=[centro_lat, centro_lon], zoom_start=7, **folium_tile_kwargs)
         if not mostrar_basemap:
             m_dual.get_root().header.add_child(folium.Element("<style>.leaflet-container { background: #ffffff !important; }</style>"))
@@ -1286,7 +1286,7 @@ if st.session_state.pagina_atual == "Mapa":
             cols_min = [c for c in ["CODEALERTA", "MUNICIPIO", "ANODETEC", "AREAHA", "geometry"] if c in alertas_mineracao.columns]
             folium.GeoJson(
                 preparar_para_folium(alertas_mineracao, cols_min),
-                name="⛏️ Mineração (Alertas)",
+                name="Mineração (Alertas)",
                 style_function=lambda _: {"fillColor": "#9b59b6", "color": "#4a235a", "weight": 1.2, "fillOpacity": 0.75},
             ).add_to(m_dual.m2)
 
@@ -1334,11 +1334,11 @@ if st.session_state.pagina_atual == "Mapa":
             min_limpo = preparar_para_folium(alertas_mapa, cols_min)
             popup_min = folium.GeoJsonPopup(
                 fields=[c for c in cols_min if c != "geometry"],
-                aliases=[f"{c}:" for c in cols_min if c != "geometry"],
+                aliases=[f"{c}:"for c in cols_min if c != "geometry"],
             )
             folium.GeoJson(
                 min_limpo,
-                name="⛏️ Mineração / Garimpo (MapBiomas)",
+                name="Mineração / Garimpo (MapBiomas)",
                 style_function=lambda _: {"fillColor": "#9b59b6", "color": "#4a235a", "weight": 1.5, "fillOpacity": 0.8},
                 popup=popup_min,
             ).add_to(m)
@@ -1349,11 +1349,11 @@ if st.session_state.pagina_atual == "Mapa":
             emb_limpo = preparar_para_folium(entrada_embargo, cols_emb)
             popup_emb = folium.GeoJsonPopup(
                 fields=[c for c in cols_emb if c != "geometry"],
-                aliases=[f"{c}:" for c in cols_emb if c != "geometry"],
+                aliases=[f"{c}:"for c in cols_emb if c != "geometry"],
             )
             folium.GeoJson(
                 emb_limpo,
-                name="🚫 Embargos IBAMA",
+                name="Embargos IBAMA",
                 style_function=lambda _: {"fillColor": "orange", "color": "black", "weight": 1.2, "fillOpacity": 0.75},
                 popup=popup_emb,
             ).add_to(m)
@@ -1363,7 +1363,7 @@ if st.session_state.pagina_atual == "Mapa":
             desm_limpo = gpd.GeoDataFrame(geometry=entrada_desmat.to_crs(epsg=4326).geometry, crs="EPSG:4326")
             folium.GeoJson(
                 desm_limpo,
-                name="🪓 Desmatamento PRODES",
+                name="Desmatamento PRODES",
                 style_function=lambda _: {"fillColor": "red", "color": "darkred", "weight": 1, "fillOpacity": 0.6},
             ).add_to(m)
 
@@ -1371,8 +1371,8 @@ if st.session_state.pagina_atual == "Mapa":
         if mostrar_basemap:
             folium.TileLayer(
                 tiles="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
-                attr=" ",
-                name="⬜ Sem Mapa de Fundo",
+                attr="",
+                name="Sem Mapa de Fundo",
                 overlay=False,
                 control=True,
                 show=False,
@@ -1398,7 +1398,7 @@ if st.session_state.pagina_atual == "Mapa":
             returned_objects=[],
         )
 
-    st.caption(f"📍 Centro da área: Lat `{centro_lat:.5f}`, Lon `{centro_lon:.5f}` — Clique nos polígonos roxos (Mineração) ou laranjas (IBAMA) para ver detalhes.")
+    st.caption(f"Centro da área: Lat `{centro_lat:.5f}`, Lon `{centro_lon:.5f}` — Clique nos polígonos roxos (Mineração) ou laranjas (IBAMA) para ver detalhes.")
 
 
 # ==============================================================================
@@ -1425,32 +1425,32 @@ elif st.session_state.pagina_atual == "Gráficos e Dados":
     dif_flor = flor_por_ano.get(2024, 0.0) - flor_por_ano.get(2004, 0.0)
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("📐 Área Total TI", f"{area_total_ha:,.2f} ha", f"EPSG:{epsg_metrico}")
-    c2.metric("⛏️ Mineração 2004", f"{a04:,.2f} ha", "MapBiomas Col. 11")
-    c3.metric("⛏️ Mineração 2014", f"{a14:,.2f} ha", "MapBiomas Col. 11")
-    c4.metric("⛏️ Mineração 2024", f"{a24:,.2f} ha", f"+{var_pct:,.1f}% desde 2004")
+    c1.metric("Área Total TI", f"{area_total_ha:,.2f} ha", f"EPSG:{epsg_metrico}")
+    c2.metric("Mineração 2004", f"{a04:,.2f} ha", "MapBiomas Col. 11")
+    c3.metric("Mineração 2014", f"{a14:,.2f} ha", "MapBiomas Col. 11")
+    c4.metric("Mineração 2024", f"{a24:,.2f} ha", f"+{var_pct:,.1f}% desde 2004")
 
     k_d1, k_d2, k_d3, k_d4 = st.columns(4)
-    k_d1.metric("🪓 Área Antrópica / Desmat. 2004", f"{d04:,.2f} ha", "MapBiomas Col. 11")
-    k_d2.metric("🪓 Área Antrópica / Desmat. 2014", f"{d14:,.2f} ha", "MapBiomas Col. 11")
-    k_d3.metric("🪓 Área Antrópica / Desmat. 2024", f"{d24:,.2f} ha", f"+{var_desm_pct:,.1f}% desde 2004")
-    k_d4.metric("🌲 Floresta Nativa 2024", f"{flor_por_ano.get(2024, 0.0):,.0f} ha", f"{dif_flor:,.0f} ha vs 2004")
+    k_d1.metric("Área Antrópica / Desmat. 2004", f"{d04:,.2f} ha", "MapBiomas Col. 11")
+    k_d2.metric("Área Antrópica / Desmat. 2014", f"{d14:,.2f} ha", "MapBiomas Col. 11")
+    k_d3.metric("Área Antrópica / Desmat. 2024", f"{d24:,.2f} ha", f"+{var_desm_pct:,.1f}% desde 2004")
+    k_d4.metric("Floresta Nativa 2024", f"{flor_por_ano.get(2024, 0.0):,.0f} ha", f"{dif_flor:,.0f} ha vs 2004")
 
     subtab_uso, subtab_min, subtab_desm, subtab_emb, subtab_exp = st.tabs([
-        "🌱 Cobertura do Solo",
-        "⛏️ Mineração e Garimpo",
-        "🪓 Desmatamento (2004–2024)",
-        "🚫 Embargos IBAMA",
-        "🔎 Explorador de Dados",
+        "Cobertura do Solo",
+        "Mineração e Garimpo",
+        "Desmatamento (2004–2024)",
+        "Embargos IBAMA",
+        "Explorador de Dados",
     ])
 
     with subtab_uso:
         f_g1, f_g2, f_g3 = st.columns([1.3, 1.3, 1.4])
         with f_g1:
-            so_mineracao = st.toggle("⛏️ Ver só o gráfico de Mineração (2004, 2014 e 2024)", value=False)
+            so_mineracao = st.toggle("Ver só o gráfico de Mineração (2004, 2014 e 2024)", value=False)
         with f_g2:
             ano_graf_sel = st.radio(
-                "📅 Ano (MapBiomas Col. 11):",
+                "Ano (MapBiomas Col. 11):",
                 options=[2004, 2014, 2024],
                 index=2,
                 horizontal=True,
@@ -1498,7 +1498,7 @@ elif st.session_state.pagina_atual == "Gráficos e Dados":
                     st.dataframe(df_min_show, use_container_width=True, hide_index=True, height=320)
                     csv_min_anos = df_min_show.to_csv(index=False).encode("utf-8-sig")
                     st.download_button(
-                        label="⬇️ Baixar Mineração 2004/2014/2024 (CSV)",
+                        label="Baixar Mineração 2004/2014/2024 (CSV)",
                         data=csv_min_anos,
                         file_name="mineracao_yanomami_2004_2014_2024.csv",
                         mime="text/csv",
@@ -1563,7 +1563,7 @@ elif st.session_state.pagina_atual == "Gráficos e Dados":
                     )
                     csv_uso = df_uso[["Código", "Classe", "Área (ha)", "Percentual (%)"]].to_csv(index=False).encode("utf-8-sig")
                     st.download_button(
-                        label=f"⬇️ Baixar Tabela {ano_graf_sel} (CSV)",
+                        label=f"Baixar Tabela {ano_graf_sel} (CSV)",
                         data=csv_uso,
                         file_name=f"cobertura_solo_yanomami_{ano_graf_sel}.csv",
                         mime="text/csv",
@@ -1575,7 +1575,7 @@ elif st.session_state.pagina_atual == "Gráficos e Dados":
 
     with subtab_desm:
         st.caption(
-            "📌 **Nota metodológica:** Os valores de **2004, 2014 e 2024** representam a área antrópica acumulada (desmatamento consolidado: pastagem, mosaico de usos, áreas não vegetadas, mineração, aquicultura e lavouras) no **MapBiomas Col. 11 (30 m)**. Já os alertas vetoriais do **PRODES/Alertas** cobrem o período de **2019 a 2024**."
+            "**Nota metodológica:** Os valores de **2004, 2014 e 2024** representam a área antrópica acumulada (desmatamento consolidado: pastagem, mosaico de usos, áreas não vegetadas, mineração, aquicultura e lavouras) no **MapBiomas Col. 11 (30 m)**. Já os alertas vetoriais do **PRODES/Alertas** cobrem o período de **2019 a 2024**."
         )
         if len(df_desm_col11) > 0:
             gd1, gd2 = st.columns(2)
@@ -1607,7 +1607,7 @@ elif st.session_state.pagina_atual == "Gráficos e Dados":
                 st.plotly_chart(fig_desm_col11, use_container_width=True)
 
             with gd2:
-                if len(entrada_desmat) > 0 and "ANODETEC" in entrada_desmat.columns:
+                if len(entrada_desmat) > 0 and "ANODETEC"in entrada_desmat.columns:
                     df_prodes_anual = (
                         entrada_desmat.assign(Ano=entrada_desmat["ANODETEC"].astype(int).astype(str))
                         .groupby("Ano", as_index=False)
@@ -1640,7 +1640,7 @@ elif st.session_state.pagina_atual == "Gráficos e Dados":
             )
             st.dataframe(df_desm_tab, use_container_width=True, hide_index=True)
             st.download_button(
-                label="⬇️ Baixar Desmatamento 2004/2014/2024 (CSV)",
+                label="Baixar Desmatamento 2004/2014/2024 (CSV)",
                 data=df_desm_tab.to_csv(index=False).encode("utf-8-sig"),
                 file_name="desmatamento_yanomami_2004_2014_2024.csv",
                 mime="text/csv",
@@ -1697,11 +1697,11 @@ elif st.session_state.pagina_atual == "Gráficos e Dados":
             st.plotly_chart(plot, use_container_width=True)
 
             # Tabela completa expansível e botão de download em CSV
-            with st.expander(f"📋 Ver Tabela Completa — {tema_grafico} ({len(df_analisado)} registros)", expanded=True):
+            with st.expander(f"Ver Tabela Completa — {tema_grafico} ({len(df_analisado)} registros)", expanded=True):
                 st.dataframe(df_analisado, use_container_width=True)
                 csv_tema = df_analisado.to_csv(index=False).encode("utf-8-sig")
                 st.download_button(
-                    label=f"⬇️ Baixar Dados de {tema_grafico} (CSV)",
+                    label=f"Baixar Dados de {tema_grafico} (CSV)",
                     data=csv_tema,
                     file_name=f"yanomami_{tema_grafico.lower().replace(' ', '_')}.csv",
                     mime="text/csv",
