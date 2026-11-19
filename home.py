@@ -1023,7 +1023,7 @@ elif st.session_state.pagina_atual == "Mapa":
 
         corpo = "".join(itens_html)
         return f"""
-        <div style="
+        <div id="webgis-legenda" style="
             position: fixed;
             bottom: 24px;
             right: 16px;
@@ -1040,7 +1040,7 @@ elif st.session_state.pagina_atual == "Mapa":
         ">
             <div style="font-weight:700;margin-bottom:4px;">🗺️ Legenda</div>
             <style>
-                div span {{
+                #webgis-legenda div span {{
                     display: inline-block;
                     width: 12px;
                     height: 12px;
@@ -1204,6 +1204,17 @@ elif st.session_state.pagina_atual == "Mapa":
                 desm_limpo,
                 name="🪓 Desmatamento PRODES",
                 style_function=lambda _: {"fillColor": "red", "color": "darkred", "weight": 1, "fillOpacity": 0.6},
+            ).add_to(m)
+
+        # Adiciona opção de fundo limpo no LayerControl do próprio mapa quando o basemap estiver ativo
+        if mostrar_basemap:
+            folium.TileLayer(
+                tiles="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+                attr=" ",
+                name="⬜ Sem Mapa de Fundo",
+                overlay=False,
+                control=True,
+                show=False,
             ).add_to(m)
 
         # Adiciona controle de tela cheia, camadas e legenda fixa nos cantos do mapa
