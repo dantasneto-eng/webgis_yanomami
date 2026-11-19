@@ -1,3 +1,7 @@
-# Configuração padrão do tema do WebGIS Yanomami em modo escuro
+# Tema claro e limpo (ideal para visualização cartográfica e apresentação acadêmica)
 [theme]
-base = "dark"
+base = "light"
+primaryColor = "#1b5e20"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f4f6f9"
+textColor = "#111827"

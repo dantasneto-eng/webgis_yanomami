@@ -10,6 +10,7 @@ import tempfile
 import pandas as pd
 # Biblioteca para criação de gráficos interativos
 import plotly.express as px
+px.defaults.template = "plotly_white"
 # Biblioteca para criação de mapas interativos na web (baseado em Leaflet) e plugins de tela cheia / mapa duplo
 import folium
 from folium.plugins import DualMap, Fullscreen
@@ -53,33 +54,31 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Injeta CSS personalizado para ocupar a tela toda e deixar os controles compactos nos cantos
+# Injeta CSS personalizado para visual clean, leve e com foco no mapa e nos gráficos
 st.markdown(
     """
     <style>
-        /* Ocupa a tela inteira sem cortar os botões no topo */
         .block-container {
-            padding-top: 2.8rem;
-            padding-bottom: 0.8rem;
-            padding-left: 1.2rem;
-            padding-right: 1.2rem;
+            padding-top: 1.8rem;
+            padding-bottom: 1rem;
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
             max-width: 100%;
         }
-        /* Estiliza os cartões de métricas (KPIs) com borda sutil e fundo destacado */
         div[data-testid="stMetric"] {
-            background-color: rgba(128, 128, 128, 0.08);
-            border: 1px solid rgba(128, 128, 128, 0.2);
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
             border-radius: 10px;
-            padding: 8px 12px;
+            padding: 10px 14px;
         }
-        /* Arredonda os cantos dos botões interativos */
         div.stButton > button {
             border-radius: 8px;
             font-weight: 600;
         }
-        /* Garante que o mapa ocupe toda a largura disponível */
         iframe[title="streamlit_folium.st_folium"] {
             width: 100% !important;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
         }
     </style>
     """,
@@ -481,35 +480,26 @@ def processar_raster_otimizado(raster_fonte, poligono_bytes: bytes, poligono_nom
 # MENU LATERAL (SIDEBAR): FOCO YANOMAMI, NAVEGAÇÃO E UPLOAD OPCIONAL
 # ==============================================================================
 
-# Título do menu lateral
-st.sidebar.title("⛏️ WebGIS Yanomami")
+# Título e navegação limpa do menu lateral (2 funções principais)
+st.sidebar.markdown("### 🛰️ WebGIS Yanomami")
+st.sidebar.caption("Monitoramento Ambiental • TCC")
 
-# Botão principal para garantir o foco na Terra Indígena Yanomami a qualquer momento
-if st.sidebar.button("🎯 Focar na TI Yanomami (Padrão)", type="primary", use_container_width=True):
-    st.session_state.modo_yanomami = True
-    st.session_state.pagina_atual = "Mapa"
-    st.rerun()
-
-# Linha divisória visual no menu lateral
 st.sidebar.divider()
 
-# Seção de navegação rápida no menu lateral com as 4 abas principais
-st.sidebar.subheader("1. Navegação do Site")
 paginas = [
     ("Mapa", "🗺️ Mapa Interativo"),
-    ("Gráficos e Dados", "📈 Gráficos e Dados"),
-    ("Mineração", "⛏️ Mineração e Garimpo"),
-    ("Embargos", "🚫 Embargos IBAMA"),
+    ("Gráficos e Dados", "📊 Dados e Gráficos"),
 ]
 
-# Cria um botão no menu lateral para cada seção; a seção atual fica destacada
+if st.session_state.pagina_atual not in ("Mapa", "Gráficos e Dados"):
+    st.session_state.pagina_atual = "Mapa"
+
 for chave_pagina, rotulo_pagina in paginas:
     tipo_botao = "primary" if st.session_state.pagina_atual == chave_pagina else "secondary"
     if st.sidebar.button(rotulo_pagina, key=f"side_{chave_pagina}", type=tipo_botao, use_container_width=True):
         ir_para(chave_pagina)
         st.rerun()
 
-# Linha divisória visual
 st.sidebar.divider()
 
 # Seção expansível opcional caso o usuário queira subir outro polígono e raster manualmente
@@ -570,16 +560,25 @@ else:
     raster_nome = raster_escolhido
     raster_tamanho = os.path.getsize(raster_fonte)
     titulo_area = "Terra Indígena Yanomami (RR / AM)"
-    st.sidebar.info("📍 Foco ativo: **Terra Indígena Yanomami**\n\nTema: **Mineração / Garimpo**")
+
+with st.sidebar.expander("📚 Metodologia e Fontes", expanded=False):
+    st.markdown(
+        """
+        - **Cobertura do Solo:** MapBiomas Coleção 11 (30 m) — 2004, 2014 e 2024
+        - **Alertas:** MapBiomas Alertas
+        - **Embargos:** IBAMA
+        - **Desmatamento:** PRODES / INPE
+        - **SRC:** SIRGAS 2000 (cálculos métricos em projeção UTM local)
+        """
+    )
 
 
 # ==============================================================================
-# CABEÇALHO COMPACTO (NAVEGAÇÃO MANTIDA APENAS NO MENU LATERAL)
+# CABEÇALHO COMPACTO
 # ==============================================================================
 
-# Exibe apenas o título compacto no topo da área principal para dar mais espaço ao conteúdo e ao mapa
-st.markdown(f"#### ⛏️ WebGIS — {titulo_area}")
-st.markdown("<hr style='margin: 0.25rem 0 0.7rem 0; border-color: rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+st.markdown(f"### WebGIS — {titulo_area}")
+st.caption("MapBiomas Col. 11 (2004–2024) • Alertas de Mineração • Embargos IBAMA • PRODES")
 
 
 # ==============================================================================
@@ -645,9 +644,7 @@ def calcular_evolucao_mineracao_col11() -> pd.DataFrame:
     return pd.DataFrame(linhas)
 
 
-if st.session_state.pagina_atual == "Mineração":
-    st.subheader(f"⛏️ Monitoramento de Mineração e Garimpo — {titulo_area}")
-
+def renderizar_painel_mineracao():
     df_col11_min = calcular_evolucao_mineracao_col11()
     anos_disponiveis = [2004, 2014, 2024]
 
@@ -760,12 +757,148 @@ if st.session_state.pagina_atual == "Mineração":
 
 
 # ==============================================================================
+# PÁGINA 4: PAINEL EXCLUSIVO DE EMBARGOS AMBIENTAIS (IBAMA)
+# ==============================================================================
+
+def renderizar_painel_embargos():
+    # Verifica se existem embargos sobrepostos à área analisada
+    if len(entrada_embargo) == 0:
+        st.info("Não foram encontrados embargos do IBAMA nesta área.")
+    else:
+        # Prepara uma cópia tabular sem geometria e converte colunas numéricas de área, valor e ano
+        df_emb = pd.DataFrame(entrada_embargo.drop(columns=["geometry"], errors="ignore")).copy()
+        df_emb["qtd_area_e_num"] = pd.to_numeric(df_emb.get("qtd_area_e", 0), errors="coerce").fillna(0.0)
+        df_emb["valor_tad_num"] = pd.to_numeric(df_emb.get("valor_tad", 0), errors="coerce").fillna(0.0)
+        if "data_tad" in df_emb.columns:
+            # Extrai o ano da data do termo de embargo (suporta formatos ISO ou DD/MM/AAAA)
+            anos_dt = pd.to_datetime(df_emb["data_tad"], errors="coerce").dt.year
+            anos_regex = pd.to_numeric(df_emb["data_tad"].astype(str).str.extract(r"((?:19|20)\d{2})")[0], errors="coerce")
+            df_emb["ano_embargo"] = anos_dt.fillna(anos_regex).fillna(0).astype(int)
+        else:
+            df_emb["ano_embargo"] = 0
+
+        # Cria filtros interativos por Ano, UF, Município e vínculo com mineração/garimpo
+        fe0, fe1, fe2, fe3 = st.columns([1.2, 0.9, 1.2, 1.2])
+        anos_emb_disp = sorted([int(a) for a in df_emb["ano_embargo"].unique() if a > 0])
+        with fe0:
+            anos_emb_sel = st.multiselect("Filtrar por Ano:", options=anos_emb_disp, default=anos_emb_disp)
+
+        ufs_disp = sorted(df_emb["sig_uf"].dropna().astype(str).unique().tolist()) if "sig_uf" in df_emb.columns else []
+        with fe1:
+            ufs_sel = st.multiselect("Filtrar por UF:", options=ufs_disp, default=ufs_disp)
+
+        # Atualiza a lista de municípios conforme os anos e UFs selecionados
+        df_por_uf = df_emb.copy()
+        if len(anos_emb_sel) > 0:
+            df_por_uf = df_por_uf[df_por_uf["ano_embargo"].isin(anos_emb_sel)]
+        if len(ufs_sel) > 0 and "sig_uf" in df_por_uf.columns:
+            df_por_uf = df_por_uf[df_por_uf["sig_uf"].astype(str).isin(ufs_sel)]
+
+        muns_disp = sorted(df_por_uf["nom_munici"].dropna().astype(str).unique().tolist()) if "nom_munici" in df_por_uf.columns else []
+        with fe2:
+            muns_sel = st.multiselect("Filtrar por Município:", options=muns_disp, default=muns_disp)
+
+        with fe3:
+            filtro_motivo = st.radio(
+                "Motivo do embargo:",
+                options=["Todos os Embargos", "Apenas Mineração / Garimpo"],
+                horizontal=True,
+            )
+
+        # Aplica os filtros selecionados ao DataFrame de embargos
+        df_emb_filt = df_por_uf.copy()
+        if len(muns_sel) > 0 and "nom_munici" in df_emb_filt.columns:
+            df_emb_filt = df_emb_filt[df_emb_filt["nom_munici"].astype(str).isin(muns_sel)]
+        if filtro_motivo == "Apenas Mineração / Garimpo":
+            txt_tad = df_emb_filt.get("des_tad", pd.Series("", index=df_emb_filt.index)).fillna("").astype(str)
+            txt_inf = df_emb_filt.get("des_infrac", pd.Series("", index=df_emb_filt.index)).fillna("").astype(str)
+            df_emb_filt = df_emb_filt[
+                txt_tad.str.contains(REGEX_MINERACAO, case=False, regex=True)
+                | txt_inf.str.contains(REGEX_MINERACAO, case=False, regex=True)
+            ]
+
+        # Calcula os valores consolidados para os cartões de métricas (KPIs)
+        total_autos = len(df_emb_filt)
+        area_filt_ha = float(df_emb_filt["qtd_area_e_num"].sum())
+        valor_total_rs = float(df_emb_filt["valor_tad_num"].sum())
+        municipios_emb = int(df_emb_filt["nom_munici"].nunique()) if "nom_munici" in df_emb_filt.columns and total_autos > 0 else 0
+
+        # Exibe 4 KPIs no mesmo padrão visual da aba de Mineração
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("🚫 Total de Embargos", f"{total_autos:,}", f"{len(embargos_mineracao)} ligados à mineração")
+        k2.metric("📐 Área Embargada", f"{area_filt_ha:,.2f} ha", f"Interseção real: {area_embargo_ha:,.2f} ha")
+        k3.metric("💰 Valor Total (TAD)", f"R$ {valor_total_rs:,.2f}", "Autos de embargo IBAMA")
+        k4.metric("🏙️ Municípios Atingidos", f"{municipios_emb}", "com termos de embargo")
+
+        st.write("")
+        # Divide a tela entre gráfico por município e gráfico por UF/tipo de infração
+        ge1, ge2 = st.columns(2)
+
+        with ge1:
+            if total_autos > 0 and "nom_munici" in df_emb_filt.columns:
+                df_emb_mun = (
+                    df_emb_filt.groupby("nom_munici", as_index=False)
+                    .agg(Embargos=("numero_tad", "count"), Area_ha=("qtd_area_e_num", "sum"))
+                    .sort_values("Area_ha", ascending=True)
+                    .tail(10)
+                )
+                fig_emb_mun = px.bar(
+                    df_emb_mun,
+                    x="Area_ha",
+                    y="nom_munici",
+                    orientation="h",
+                    text_auto=".1f",
+                    title="Área Embargada por Município (ha)",
+                    labels={"nom_munici": "Município", "Area_ha": "Área (ha)"},
+                    color_discrete_sequence=["#e67e22"],
+                )
+                fig_emb_mun.update_layout(height=380)
+                st.plotly_chart(fig_emb_mun, use_container_width=True)
+
+        with ge2:
+            # Gráfico de evolução anual dos embargos do IBAMA extraídos de data_tad
+            df_emb_anos = df_emb_filt[df_emb_filt["ano_embargo"] > 0]
+            if total_autos > 0 and len(df_emb_anos) > 0:
+                df_emb_evo = (
+                    df_emb_anos.groupby("ano_embargo", as_index=False)
+                    .agg(Embargos=("numero_tad", "count"), Area_ha=("qtd_area_e_num", "sum"))
+                    .sort_values("ano_embargo")
+                )
+                df_emb_evo["Ano"] = df_emb_evo["ano_embargo"].astype(str)
+                fig_emb_evo = px.bar(
+                    df_emb_evo,
+                    x="Ano",
+                    y="Embargos",
+                    text_auto=True,
+                    title="Evolução Anual dos Embargos (IBAMA)",
+                    labels={"Ano": "Ano do Embargo", "Embargos": "Nº de Embargos"},
+                    color_discrete_sequence=["#d35400"],
+                )
+                fig_emb_evo.update_layout(height=380)
+                st.plotly_chart(fig_emb_evo, use_container_width=True)
+            else:
+                st.info("Sem datas válidas (`data_tad`) para exibir a evolução anual dos embargos filtrados.")
+
+        # Exibe a tabela detalhada dos embargos filtrados e botão de download em CSV
+        colunas_exibir = [
+            c for c in ["numero_tad", "data_tad", "nom_munici", "sig_uf", "qtd_area_e", "valor_tad", "sit_embarg", "des_infrac", "des_tad"]
+            if c in df_emb_filt.columns
+        ]
+        st.markdown(f"#### 📋 Lista de Embargos ({total_autos} registros)")
+        st.dataframe(df_emb_filt[colunas_exibir], use_container_width=True, hide_index=True)
+
+        csv_emb_full = df_emb_filt.drop(columns=["qtd_area_e_num", "valor_tad_num"], errors="ignore").to_csv(index=False).encode("utf-8-sig")
+        st.download_button(
+            label="⬇️ Baixar Embargos IBAMA Filtrados (CSV)",
+            data=csv_emb_full,
+            file_name="embargos_ibama_yanomami.csv",
+            mime="text/csv",
+        )
+
 # PÁGINA 3: MAPA INTERATIVO DA TI YANOMAMI COM CAMADAS DE MINERAÇÃO
 # ==============================================================================
 
-elif st.session_state.pagina_atual == "Mapa":
-    st.subheader(f"🗺️ Mapa Interativo — {titulo_area}")
-
+if st.session_state.pagina_atual == "Mapa":
     # Inicializa estados persistentes das camadas do mapa (para os botões visuais de liga/desliga)
     defaults_camadas = {
         "camada_basemap": True,
@@ -780,27 +913,28 @@ elif st.session_state.pagina_atual == "Mapa":
         if k_cam not in st.session_state:
             st.session_state[k_cam] = v_cam
 
-    # Barra de controles acima do mapa: mapa de fundo, transparência do raster e centralizar
-    ctrl1, ctrl2, ctrl3 = st.columns([2, 2, 1])
-    with ctrl1:
-        mapa_base = st.selectbox(
-            "Mapa de Fundo (Basemap)",
-            options=["Esri Satélite", "CartoDB Claro", "CartoDB Escuro", "OpenTopoMap"],
-            disabled=not st.session_state.camada_basemap,
-            help="Desative o botão 'Fundo Esri/Mapa' abaixo para ver apenas o polígono e as classes.",
-        )
-    with ctrl2:
-        opacidade_raster = st.slider(
-            f"Transparência ({res_raster['fonte_raster']})",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.80,
-            step=0.05,
-        )
-    with ctrl3:
-        st.write("")
-        if st.button("🎯 Centralizar Mapa", use_container_width=True):
-            st.session_state.mapa_reset_id += 1
+    # Ajustes secundários recolhidos por padrão para deixar a tela limpa e o mapa no topo
+    with st.expander("⚙️ Ajustes do Mapa (Mapa de Fundo, Transparência e Centralizar)", expanded=False):
+        ctrl1, ctrl2, ctrl3 = st.columns([2, 2, 1])
+        with ctrl1:
+            mapa_base = st.selectbox(
+                "Mapa de Fundo (Basemap)",
+                options=["Esri Satélite", "CartoDB Claro", "CartoDB Escuro", "OpenTopoMap"],
+                disabled=not st.session_state.camada_basemap,
+                help="Desative o botão 'Fundo Esri / Mapa' abaixo para ver apenas o polígono e as classes.",
+            )
+        with ctrl2:
+            opacidade_raster = st.slider(
+                f"Transparência ({res_raster['fonte_raster']})",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.80,
+                step=0.05,
+            )
+        with ctrl3:
+            st.write("")
+            if st.button("🎯 Centralizar Mapa", use_container_width=True):
+                st.session_state.mapa_reset_id += 1
 
     # Escala temporal focada exatamente nos 3 anos dos rasters MapBiomas Col. 11 (2004, 2014, 2024)
     anos_raster = sorted([ano for ano, path in MAPBIOMAS_YANOMAMI_ANOS.items() if os.path.exists(path)])
@@ -931,7 +1065,7 @@ elif st.session_state.pagina_atual == "Mapa":
     imagem_raster_mapa = res_raster["resized_image"]
     codigos_ativos = None
     if mostrar_raster and len(res_raster["df_uso"]) > 0:
-        with st.expander("🎨 Legenda Interativa — Ligar / Desligar cada classe no mapa", expanded=True):
+        with st.expander("🎨 Filtrar Classes do MapBiomas no Mapa (clique para abrir)", expanded=False):
             df_classes_disp = res_raster["df_uso"]
             todos_codigos = [int(r["Código"]) for _, r in df_classes_disp.iterrows()]
 
@@ -1245,18 +1379,26 @@ elif st.session_state.pagina_atual == "Mapa":
 # ==============================================================================
 
 elif st.session_state.pagina_atual == "Gráficos e Dados":
-    st.subheader(f"📈 Gráficos e Dados — {titulo_area}")
-
-    # KPIs principais focados nos anos 2004, 2014 e 2024 (MapBiomas Col. 11) + Embargos
+    # KPIs principais focados nos anos 2004, 2014 e 2024 (MapBiomas Col. 11)
     df_col11_graf = calcular_evolucao_mineracao_col11()
     areas_col11 = {int(r["AnoNum"]): float(r["Area_ha"]) for _, r in df_col11_graf.iterrows()} if len(df_col11_graf) > 0 else {}
+    a04 = areas_col11.get(2004, 0.0)
+    a14 = areas_col11.get(2014, 0.0)
+    a24 = areas_col11.get(2024, 0.0)
+    var_pct = ((a24 - a04) / a04 * 100) if a04 > 0 else 0.0
+
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("📐 Área Total TI", f"{area_total_ha:,.2f} ha", f"EPSG:{epsg_metrico}")
-    c2.metric("⛏️ Mineração 2004", f"{areas_col11.get(2004, 0.0):,.2f} ha", "MapBiomas Col. 11")
-    c3.metric("⛏️ Mineração 2014", f"{areas_col11.get(2014, 0.0):,.2f} ha", "MapBiomas Col. 11")
-    c4.metric("⛏️ Mineração 2024", f"{areas_col11.get(2024, 0.0):,.2f} ha", "MapBiomas Col. 11")
+    c2.metric("⛏️ Mineração 2004", f"{a04:,.2f} ha", "MapBiomas Col. 11")
+    c3.metric("⛏️ Mineração 2014", f"{a14:,.2f} ha", "MapBiomas Col. 11")
+    c4.metric("⛏️ Mineração 2024", f"{a24:,.2f} ha", f"+{var_pct:,.1f}% desde 2004")
 
-    subtab_uso, subtab_exp = st.tabs(["🌱 Cobertura & Mineração (2004 / 2014 / 2024)", "📊 Explorador de Dados Vetoriais"])
+    subtab_uso, subtab_min, subtab_emb, subtab_exp = st.tabs([
+        "🌱 Cobertura do Solo",
+        "⛏️ Mineração e Garimpo",
+        "🚫 Embargos IBAMA",
+        "🔎 Explorador de Dados",
+    ])
 
     with subtab_uso:
         f_g1, f_g2, f_g3 = st.columns([1.3, 1.3, 1.4])
@@ -1384,6 +1526,12 @@ elif st.session_state.pagina_atual == "Gráficos e Dados":
                         use_container_width=True,
                     )
 
+    with subtab_min:
+        renderizar_painel_mineracao()
+
+    with subtab_emb:
+        renderizar_painel_embargos()
+
     with subtab_exp:
         # Converte os GeoDataFrames recortados em DataFrames comuns (sem a coluna geometry)
         df_min = pd.DataFrame(alertas_mineracao.drop(columns=["geometry"], errors="ignore"))
@@ -1446,142 +1594,3 @@ elif st.session_state.pagina_atual == "Gráficos e Dados":
 
 
 # ==============================================================================
-# PÁGINA 4: PAINEL EXCLUSIVO DE EMBARGOS AMBIENTAIS (IBAMA)
-# ==============================================================================
-
-elif st.session_state.pagina_atual == "Embargos":
-    st.subheader(f"🚫 Embargos Ambientais (IBAMA) — {titulo_area}")
-
-    # Verifica se existem embargos sobrepostos à área analisada
-    if len(entrada_embargo) == 0:
-        st.info("Não foram encontrados embargos do IBAMA nesta área.")
-    else:
-        # Prepara uma cópia tabular sem geometria e converte colunas numéricas de área, valor e ano
-        df_emb = pd.DataFrame(entrada_embargo.drop(columns=["geometry"], errors="ignore")).copy()
-        df_emb["qtd_area_e_num"] = pd.to_numeric(df_emb.get("qtd_area_e", 0), errors="coerce").fillna(0.0)
-        df_emb["valor_tad_num"] = pd.to_numeric(df_emb.get("valor_tad", 0), errors="coerce").fillna(0.0)
-        if "data_tad" in df_emb.columns:
-            # Extrai o ano da data do termo de embargo (suporta formatos ISO ou DD/MM/AAAA)
-            anos_dt = pd.to_datetime(df_emb["data_tad"], errors="coerce").dt.year
-            anos_regex = pd.to_numeric(df_emb["data_tad"].astype(str).str.extract(r"((?:19|20)\d{2})")[0], errors="coerce")
-            df_emb["ano_embargo"] = anos_dt.fillna(anos_regex).fillna(0).astype(int)
-        else:
-            df_emb["ano_embargo"] = 0
-
-        # Cria filtros interativos por Ano, UF, Município e vínculo com mineração/garimpo
-        fe0, fe1, fe2, fe3 = st.columns([1.2, 0.9, 1.2, 1.2])
-        anos_emb_disp = sorted([int(a) for a in df_emb["ano_embargo"].unique() if a > 0])
-        with fe0:
-            anos_emb_sel = st.multiselect("Filtrar por Ano:", options=anos_emb_disp, default=anos_emb_disp)
-
-        ufs_disp = sorted(df_emb["sig_uf"].dropna().astype(str).unique().tolist()) if "sig_uf" in df_emb.columns else []
-        with fe1:
-            ufs_sel = st.multiselect("Filtrar por UF:", options=ufs_disp, default=ufs_disp)
-
-        # Atualiza a lista de municípios conforme os anos e UFs selecionados
-        df_por_uf = df_emb.copy()
-        if len(anos_emb_sel) > 0:
-            df_por_uf = df_por_uf[df_por_uf["ano_embargo"].isin(anos_emb_sel)]
-        if len(ufs_sel) > 0 and "sig_uf" in df_por_uf.columns:
-            df_por_uf = df_por_uf[df_por_uf["sig_uf"].astype(str).isin(ufs_sel)]
-
-        muns_disp = sorted(df_por_uf["nom_munici"].dropna().astype(str).unique().tolist()) if "nom_munici" in df_por_uf.columns else []
-        with fe2:
-            muns_sel = st.multiselect("Filtrar por Município:", options=muns_disp, default=muns_disp)
-
-        with fe3:
-            filtro_motivo = st.radio(
-                "Motivo do embargo:",
-                options=["Todos os Embargos", "Apenas Mineração / Garimpo"],
-                horizontal=True,
-            )
-
-        # Aplica os filtros selecionados ao DataFrame de embargos
-        df_emb_filt = df_por_uf.copy()
-        if len(muns_sel) > 0 and "nom_munici" in df_emb_filt.columns:
-            df_emb_filt = df_emb_filt[df_emb_filt["nom_munici"].astype(str).isin(muns_sel)]
-        if filtro_motivo == "Apenas Mineração / Garimpo":
-            txt_tad = df_emb_filt.get("des_tad", pd.Series("", index=df_emb_filt.index)).fillna("").astype(str)
-            txt_inf = df_emb_filt.get("des_infrac", pd.Series("", index=df_emb_filt.index)).fillna("").astype(str)
-            df_emb_filt = df_emb_filt[
-                txt_tad.str.contains(REGEX_MINERACAO, case=False, regex=True)
-                | txt_inf.str.contains(REGEX_MINERACAO, case=False, regex=True)
-            ]
-
-        # Calcula os valores consolidados para os cartões de métricas (KPIs)
-        total_autos = len(df_emb_filt)
-        area_filt_ha = float(df_emb_filt["qtd_area_e_num"].sum())
-        valor_total_rs = float(df_emb_filt["valor_tad_num"].sum())
-        municipios_emb = int(df_emb_filt["nom_munici"].nunique()) if "nom_munici" in df_emb_filt.columns and total_autos > 0 else 0
-
-        # Exibe 4 KPIs no mesmo padrão visual da aba de Mineração
-        k1, k2, k3, k4 = st.columns(4)
-        k1.metric("🚫 Total de Embargos", f"{total_autos:,}", f"{len(embargos_mineracao)} ligados à mineração")
-        k2.metric("📐 Área Embargada", f"{area_filt_ha:,.2f} ha", f"Interseção real: {area_embargo_ha:,.2f} ha")
-        k3.metric("💰 Valor Total (TAD)", f"R$ {valor_total_rs:,.2f}", "Autos de embargo IBAMA")
-        k4.metric("🏙️ Municípios Atingidos", f"{municipios_emb}", "com termos de embargo")
-
-        st.write("")
-        # Divide a tela entre gráfico por município e gráfico por UF/tipo de infração
-        ge1, ge2 = st.columns(2)
-
-        with ge1:
-            if total_autos > 0 and "nom_munici" in df_emb_filt.columns:
-                df_emb_mun = (
-                    df_emb_filt.groupby("nom_munici", as_index=False)
-                    .agg(Embargos=("numero_tad", "count"), Area_ha=("qtd_area_e_num", "sum"))
-                    .sort_values("Area_ha", ascending=True)
-                    .tail(10)
-                )
-                fig_emb_mun = px.bar(
-                    df_emb_mun,
-                    x="Area_ha",
-                    y="nom_munici",
-                    orientation="h",
-                    text_auto=".1f",
-                    title="Área Embargada por Município (ha)",
-                    labels={"nom_munici": "Município", "Area_ha": "Área (ha)"},
-                    color_discrete_sequence=["#e67e22"],
-                )
-                fig_emb_mun.update_layout(height=380)
-                st.plotly_chart(fig_emb_mun, use_container_width=True)
-
-        with ge2:
-            # Gráfico de evolução anual dos embargos do IBAMA extraídos de data_tad
-            df_emb_anos = df_emb_filt[df_emb_filt["ano_embargo"] > 0]
-            if total_autos > 0 and len(df_emb_anos) > 0:
-                df_emb_evo = (
-                    df_emb_anos.groupby("ano_embargo", as_index=False)
-                    .agg(Embargos=("numero_tad", "count"), Area_ha=("qtd_area_e_num", "sum"))
-                    .sort_values("ano_embargo")
-                )
-                df_emb_evo["Ano"] = df_emb_evo["ano_embargo"].astype(str)
-                fig_emb_evo = px.bar(
-                    df_emb_evo,
-                    x="Ano",
-                    y="Embargos",
-                    text_auto=True,
-                    title="Evolução Anual dos Embargos (IBAMA)",
-                    labels={"Ano": "Ano do Embargo", "Embargos": "Nº de Embargos"},
-                    color_discrete_sequence=["#d35400"],
-                )
-                fig_emb_evo.update_layout(height=380)
-                st.plotly_chart(fig_emb_evo, use_container_width=True)
-            else:
-                st.info("Sem datas válidas (`data_tad`) para exibir a evolução anual dos embargos filtrados.")
-
-        # Exibe a tabela detalhada dos embargos filtrados e botão de download em CSV
-        colunas_exibir = [
-            c for c in ["numero_tad", "data_tad", "nom_munici", "sig_uf", "qtd_area_e", "valor_tad", "sit_embarg", "des_infrac", "des_tad"]
-            if c in df_emb_filt.columns
-        ]
-        st.markdown(f"#### 📋 Lista de Embargos ({total_autos} registros)")
-        st.dataframe(df_emb_filt[colunas_exibir], use_container_width=True, hide_index=True)
-
-        csv_emb_full = df_emb_filt.drop(columns=["qtd_area_e_num", "valor_tad_num"], errors="ignore").to_csv(index=False).encode("utf-8-sig")
-        st.download_button(
-            label="⬇️ Baixar Embargos IBAMA Filtrados (CSV)",
-            data=csv_emb_full,
-            file_name="embargos_ibama_yanomami.csv",
-            mime="text/csv",
-        )
