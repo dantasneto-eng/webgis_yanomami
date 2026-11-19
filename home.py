@@ -766,12 +766,28 @@ if st.session_state.pagina_atual == "Mineração":
 elif st.session_state.pagina_atual == "Mapa":
     st.subheader(f"🗺️ Mapa Interativo — {titulo_area}")
 
+    # Inicializa estados persistentes das camadas do mapa (para os botões visuais de liga/desliga)
+    defaults_camadas = {
+        "camada_basemap": True,
+        "camada_poligono": True,
+        "camada_mineracao": True,
+        "camada_emb_min": True,
+        "camada_desmat": False,
+        "camada_raster": True,
+        "camada_comparar": False,
+    }
+    for k_cam, v_cam in defaults_camadas.items():
+        if k_cam not in st.session_state:
+            st.session_state[k_cam] = v_cam
+
     # Barra de controles acima do mapa: mapa de fundo, transparência do raster e centralizar
     ctrl1, ctrl2, ctrl3 = st.columns([2, 2, 1])
     with ctrl1:
         mapa_base = st.selectbox(
             "Mapa de Fundo (Basemap)",
             options=["Esri Satélite", "CartoDB Claro", "CartoDB Escuro", "OpenTopoMap"],
+            disabled=not st.session_state.camada_basemap,
+            help="Desative o botão 'Fundo Esri/Mapa' abaixo para ver apenas o polígono e as classes.",
         )
     with ctrl2:
         opacidade_raster = st.slider(
@@ -843,15 +859,73 @@ elif st.session_state.pagina_atual == "Mapa":
     elif len(anos_mapa) == 1:
         st.caption(f"⛏️ Dados de mineração disponíveis para o ano **{anos_mapa[0]}** ({len(alertas_mapa)} alertas).")
 
-    # Botões tipo toggle para ligar/desligar camadas e ativar a comparação lado a lado (2004 vs 2024)
-    t1, t2, t3, t4, t5, t6 = st.columns(6)
-    mostrar_poligono = t1.toggle("🪶 Limite TI", value=True)
-    mostrar_mineracao = t2.toggle("⛏️ Garimpo/Mineração", value=True)
-    mostrar_emb_min = t3.toggle("🚫 Embargos IBAMA", value=True)
-    mostrar_desmat = t4.toggle("🪓 PRODES", value=False)
-    mostrar_raster = t5.toggle(f"🌱 {res_raster['fonte_raster']}", value=True)
+    # Botões visuais de liga/desliga para camadas (colorido = ligado, cinza = desligado)
+    st.caption("🗂️ **Camadas do Mapa** — clique nos botões para ligar (✅) ou desligar (🚫):")
     tem_par_comparacao = os.path.exists(MAPBIOMAS_YANOMAMI_ANOS.get(2004, "")) and os.path.exists(MAPBIOMAS_YANOMAMI_ANOS.get(2024, ""))
-    comparar_2004_2024 = t6.toggle("🔀 2004 vs 2024", value=False, disabled=not tem_par_comparacao)
+
+    def botao_camada(col, chave: str, rotulo: str, disabled: bool = False, help_text: str | None = None):
+        ativo = st.session_state[chave]
+        texto = f"✅ {rotulo}" if ativo else f"🚫 {rotulo} (Off)"
+        tipo = "primary" if ativo else "secondary"
+        if col.button(texto, key=f"btn_{chave}", type=tipo, use_container_width=True, disabled=disabled, help=help_text):
+            st.session_state[chave] = not ativo
+            st.rerun()
+
+    r1c1, r1c2, r1c3, r1c4 = st.columns(4)
+    botao_camada(r1c1, "camada_poligono", "Limite TI")
+    botao_camada(r1c2, "camada_mineracao", "Garimpo / Mineração")
+    botao_camada(r1c3, "camada_emb_min", "Embargos IBAMA")
+    botao_camada(r1c4, "camada_desmat", "PRODES")
+
+    r2c1, r2c2, r2c3, r2c4 = st.columns(4)
+    botao_camada(r2c1, "camada_raster", f"Classes ({res_raster['fonte_raster']})")
+    botao_camada(
+        r2c2,
+        "camada_basemap",
+        "Fundo Esri / Mapa",
+        help_text="Desligue para remover o mapa de fundo Esri e ver o fundo limpo.",
+    )
+    botao_camada(r2c3, "camada_comparar", "Comparar 2004 vs 2024", disabled=not tem_par_comparacao)
+
+    so_poligono_classes = (
+        not st.session_state.camada_basemap
+        and st.session_state.camada_poligono
+        and st.session_state.camada_raster
+        and not st.session_state.camada_mineracao
+        and not st.session_state.camada_emb_min
+        and not st.session_state.camada_desmat
+    )
+    if so_poligono_classes:
+        if r2c4.button("🗺️ Voltar Visualização Completa", key="btn_modo_completo", type="secondary", use_container_width=True):
+            st.session_state.camada_basemap = True
+            st.session_state.camada_poligono = True
+            st.session_state.camada_raster = True
+            st.session_state.camada_mineracao = True
+            st.session_state.camada_emb_min = True
+            st.rerun()
+    else:
+        if r2c4.button(
+            "🎯 Só Polígono e Classes",
+            key="btn_so_poligono_classes",
+            type="secondary",
+            use_container_width=True,
+            help="Tira o fundo Esri e outras camadas para mostrar apenas o polígono e as classes.",
+        ):
+            st.session_state.camada_basemap = False
+            st.session_state.camada_poligono = True
+            st.session_state.camada_raster = True
+            st.session_state.camada_mineracao = False
+            st.session_state.camada_emb_min = False
+            st.session_state.camada_desmat = False
+            st.rerun()
+
+    mostrar_poligono = st.session_state.camada_poligono
+    mostrar_mineracao = st.session_state.camada_mineracao
+    mostrar_emb_min = st.session_state.camada_emb_min
+    mostrar_desmat = st.session_state.camada_desmat
+    mostrar_raster = st.session_state.camada_raster
+    mostrar_basemap = st.session_state.camada_basemap
+    comparar_2004_2024 = st.session_state.camada_comparar and tem_par_comparacao
 
     # Legenda interativa em caixas individuais (quadradinho de cor + checkbox) para ligar/desligar cada classe no mapa
     imagem_raster_mapa = res_raster["resized_image"]
@@ -911,14 +985,18 @@ elif st.session_state.pagina_atual == "Mapa":
     bounds_poligono = [[miny, minx], [maxy, maxx]]
     centro_lat, centro_lon = (miny + maxy) / 2, (minx + maxx) / 2
 
-    # Mapeia a escolha do mapa de fundo para os parâmetros do Folium
+    # Mapeia a escolha do mapa de fundo para os parâmetros do Folium (ou None se o fundo estiver desligado)
     tiles_config = {
         "Esri Satélite": ("Esri World Imagery", "Esri"),
         "CartoDB Claro": ("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", "CartoDB Positron"),
         "CartoDB Escuro": ("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "CartoDB Dark Matter"),
         "OpenTopoMap": ("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", "OpenTopoMap"),
     }
-    tile_url, tile_attr = tiles_config[mapa_base]
+    if mostrar_basemap:
+        tile_url, tile_attr = tiles_config[mapa_base]
+        folium_tile_kwargs = {"tiles": tile_url, "attr": tile_attr}
+    else:
+        folium_tile_kwargs = {"tiles": None}
 
     # Função auxiliar para gerar uma legenda HTML fixa no canto inferior direito do mapa
     def construir_legenda_html() -> str:
@@ -1013,7 +1091,9 @@ elif st.session_state.pagina_atual == "Mapa":
         res_2024 = st.session_state["cache_cmp_2024"]
 
         st.info("🔀 **Modo Comparação Ativo:** Esquerda = **2004** | Direita = **2024** (mova ou dê zoom em qualquer lado para sincronizar).")
-        m_dual = DualMap(location=[centro_lat, centro_lon], zoom_start=7, tiles=tile_url, attr=tile_attr)
+        m_dual = DualMap(location=[centro_lat, centro_lon], zoom_start=7, **folium_tile_kwargs)
+        if not mostrar_basemap:
+            m_dual.get_root().header.add_child(folium.Element("<style>.leaflet-container { background: #ffffff !important; }</style>"))
 
         # Adiciona os rasters de 2004 à esquerda e 2024 à direita
         if mostrar_raster:
@@ -1062,7 +1142,9 @@ elif st.session_state.pagina_atual == "Mapa":
         )
     else:
         # Cria o mapa Folium único centralizado na Terra Indígena Yanomami
-        m = folium.Map(location=[centro_lat, centro_lon], zoom_start=7, tiles=tile_url, attr=tile_attr)
+        m = folium.Map(location=[centro_lat, centro_lon], zoom_start=7, **folium_tile_kwargs)
+        if not mostrar_basemap:
+            m.get_root().header.add_child(folium.Element("<style>.leaflet-container { background: #ffffff !important; }</style>"))
 
         # Adiciona o raster de cobertura do solo se o toggle estiver ativo
         if mostrar_raster:
